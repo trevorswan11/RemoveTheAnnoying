@@ -16,7 +16,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.0.0";
+        private const string modVersion = "1.0.1";
 
         private readonly Harmony harmony = new Harmony(modGUID);
 
@@ -66,6 +66,15 @@ namespace RemoveTheAnnoying.Patches
             int randomSeed = __instance.randomMapSeed;
             RoundManager manager = RoundManager.Instance;
             InteriorType? type = DetermineType(randomSeed, manager);
+
+           if (manager.currentLevel.name.Equals("Gordion") || 
+                manager.currentLevel.PlanetName.Equals("Gordion") ||
+                __instance.currentLevel.PlanetName.Equals("Gordion") ||
+                __instance.currentLevel.name.Equals("Gordion"))
+            {
+                Logger.LogInfo("The Company Building Detected.");
+                return;
+            }
 
             // Check if the interior type is valid
             if (!type.HasValue)
@@ -131,6 +140,18 @@ namespace RemoveTheAnnoying.Patches
         /// <returns>The type of the map given the seed, or null if not found.</returns>
         private static InteriorType? DetermineType(int seed, RoundManager manager)
         {
+            if (manager.currentLevel.name.Equals("Gordion") ||
+                manager.currentLevel.PlanetName.Equals("Gordion"))
+            {
+                Logger.LogInfo("The Company Building Detected.");
+                return null;
+            }
+
+            if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
+            {
+                return null;
+            }
+
             System.Random rnd = new System.Random(seed);
             List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
             Logger.LogDebug("List: " + string.Join(", ", lst));
