@@ -60,6 +60,8 @@ namespace RemoveTheAnnoying.Patches
     public class ChooseNewRandomMapSeedPatch
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private const int MaxSeedAttempts = 1000;
+        private const int MaxSeedValue = 100_000_000;
 
         // Postfix method - runs after round seed is generated
         private static void Postfix(StartOfRound __instance)
@@ -70,22 +72,15 @@ namespace RemoveTheAnnoying.Patches
             InteriorType? type = DetermineType(randomSeed, manager);
 
             // Check for The Company - I don't know if any of this is necessary
-            if (manager.currentLevel.name.Equals("Gordion") || 
-                manager.currentLevel.PlanetName.Equals("Gordion") ||
-                manager.currentLevel.Equals("CompanyBuilding") ||
-                __instance.currentLevel.PlanetName.Equals("Gordion") ||
-                __instance.currentLevel.name.Equals("Gordion") ||
-                __instance.currentLevel.sceneName.Equals("CompanyBuilding"))
+            if (ManagerIsCompany(manager) || StartOfRoundIsCompany(__instance))
             {
-                Logger.LogInfo("The Company Building Detected.");
+                Logger.LogDebug("The Company Building Detected.");
                 return;
             }
 
             // Check if the interior type is valid
-            if (!type.HasValue)
-            {
-                return;
-            }
+            if (!type.HasValue) return;
+
             type = type.Value;
             Logger.LogInfo($"Seed: {randomSeed} is a {type}.");
 
@@ -102,7 +97,7 @@ namespace RemoveTheAnnoying.Patches
             manager.InitializeRandomNumberGenerators();
 
             // Limit to 1000 total generation attempts
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < MaxSeedAttempts; i++)
             {
                 randomSeed = NewSeed();
                 type = DetermineType((int)randomSeed, manager);
@@ -132,11 +127,13 @@ namespace RemoveTheAnnoying.Patches
             // Prefix method - Runs before GenerateNewFloor does in the RoundManager class
             private static bool Prefix(RoundManager __instance)
             {
-                // Modify the current level's dungeonFlowTypes by removing any entry where the id is 4 (Mineshaft ID)
-                __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where((IntWithRarity dungeonFlowType) => dungeonFlowType.id != 4).ToArray();
-                Logger.LogInfo((object)("Removed mineshaft generation of " + ((UnityEngine.Object)__instance.currentLevel) + "."));
+                // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
+                __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotMineshaft).ToArray();
+                Logger.LogDebug($"Removed mineshaft generation of {__instance.currentLevel}.");
                 return true;
             }
+
+            private static bool IsNotMineshaft(IntWithRarity flow) => flow.id != (int)InteriorType.Mineshaft;
         }
 
         /// <summary>
@@ -147,85 +144,107 @@ namespace RemoveTheAnnoying.Patches
         /// <returns>The type of the map given the seed, or null if not found.</returns>
         private static InteriorType? DetermineType(int seed, RoundManager manager)
         {
-            // My dumbass throwing shit at the wall and hoping it sticks
-            if (manager.currentLevel.name.Equals("Gordion") ||
-                manager.currentLevel.PlanetName.Equals("Gordion") ||
-                manager.currentLevel.sceneName.Equals("CompanyBuilding"))
+            try
             {
-                Logger.LogInfo("The Company Building Detected.");
+                // My dumbass throwing shit at the wall and hoping it sticks
+                if (ManagerIsCompany(manager))
+                {
+                    Logger.LogDebug("The Company Building Detected.");
+                    return null;
+                }
+
+                // This is 100000% necessary, do not remove this conditional
+                if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
+                {
+                    Logger.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
+                    return null;
+                }
+
+                // 'seed' the random number so that it is the same sequence everytime - this is what the game does as well
+                System.Random rnd = new System.Random(seed);
+
+                // Some debugging
+                List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
+                Logger.LogDebug("List: " + string.Join(", ", lst));
+                int weight = manager.GetRandomWeightedIndex(lst.ToArray(), rnd);
+                Logger.LogDebug($"Weight: {weight}");
+
+                // Check the enum for the id
+                int id = manager.currentLevel.dungeonFlowTypes[weight].id;
+                if (Enum.IsDefined(typeof(InteriorType), id))
+                {
+                    return (InteriorType)id;
+                }
                 return null;
             }
-
-            // This is 100000% necessary, do not remove this conditional
-            if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
+            catch (Exception ex)
             {
-                Logger.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
+                Logger.LogWarning($"Error determining interior type for seed {seed}: {ex.Message}");
                 return null;
             }
-
-            // 'seed' the random number so that it is the same sequence everytime - this is what the game does as well
-            System.Random rnd = new System.Random(seed);
-
-            // Some debugging
-            List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
-            Logger.LogDebug("List: " + string.Join(", ", lst));
-            int weight = manager.GetRandomWeightedIndex(lst.ToArray(), rnd);
-            Logger.LogDebug($"Weight: {weight}");
-            int id = manager.currentLevel.dungeonFlowTypes[weight].id;
-
-            // Check the enum for the id
-            if (Enum.IsDefined(typeof(InteriorType), id))
-            { 
-                return (InteriorType)id;
-            }
-            return null;
         }
 
         /// <summary>
         /// Generates a new random seed.
         /// </summary>
         /// <returns>An int value between 1 and 100 million</returns>
-        private static int NewSeed() => new System.Random().Next(1, 100_000_000);
+        private static int NewSeed() => new System.Random().Next(1, MaxSeedValue);
+
+        private static bool ManagerIsCompany(RoundManager manager)
+        {
+            return manager.currentLevel.name.Equals("Gordion") ||
+                manager.currentLevel.PlanetName.Equals("Gordion") ||
+                manager.currentLevel.Equals("CompanyBuilding");
+        }
+
+        private static bool StartOfRoundIsCompany(StartOfRound startOfRound)
+        {
+            return startOfRound.currentLevel.PlanetName.Equals("Gordion") ||
+                startOfRound.currentLevel.name.Equals("Gordion") ||
+                startOfRound.currentLevel.sceneName.Equals("CompanyBuilding");
+        }
     }
 
     [HarmonyPatch(typeof(RoundManager), "LoadNewLevel")]
     public class DisableBadEnemySpawningPatch
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly HashSet<string> DisabledEnemies 
+            = new HashSet<string> { "ClaySurgeon", "CaveDweller" };
 
         // Prefix method - runs before the RoundManager loads the new level
         private static void Prefix(SelectableLevel newLevel)
         {
-            // Only two stinky enemies currently
+            // Check if the level contains any of the disabled enemies
+            if (!newLevel.Enemies.Any(e => DisabledEnemies.Contains(e.enemyType.name)))
+            {
+                Logger.LogInfo("No unfun enemies detected in spawning pool.");
+                return;
+            }
+
+            // Check and count disabled enemies, modify along the way
+            int disabledCount = 0;
             foreach (SpawnableEnemyWithRarity e in newLevel.Enemies)
             {
-                // Could be a conditional if checking for matches in an array
-                switch (e.enemyType.name)
-                {
-                    case "ClaySurgeon":
-                        DisableEnemy(e);
-                        break;
-
-                    case "CaveDweller":
-                        DisableEnemy(e);
-                        break;
-
-                    // Add more bad enemies as needed
-                    default:
-                        break;
-                }
-
+                if (DisableEnemyIfStinky(e)) disabledCount++;
             }
+            Logger.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
+            Logger.LogDebug("Level will not spawn any unfun enemies.");
         }
 
         /// <summary>
-        /// Given any enemy, sets its rarity (spawn chance) to 0
+        /// Given any enemy, sets its rarity (spawn chance) to 0 if in set of disabled enemies
         /// </summary>
         /// <param name="enemy">The desired enemy to alter.</param>
-        private static void DisableEnemy(SpawnableEnemyWithRarity enemy)
+        private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy)
         {
-            enemy.rarity = 0;
-            Logger.LogInfo($"Spawning of {enemy.enemyType.name} disabled.");
+            if (DisabledEnemies.Contains(enemy.enemyType.name))
+            {
+                enemy.rarity = 0;
+                Logger.LogInfo($"Spawning of {enemy.enemyType.name} disabled.");
+                return true;
+            }
+            return false;
         }
     }
 }
