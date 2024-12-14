@@ -8,6 +8,7 @@ using BepInEx.Logging;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace RemoveTheAnnoying
 {
@@ -16,7 +17,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.0.1";
+        private const string modVersion = "1.0.2";
 
         private readonly Harmony harmony = new Harmony(modGUID);
 
@@ -60,6 +61,7 @@ namespace RemoveTheAnnoying.Patches
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
 
+        // Postfix method - runs after round seed is generated
         private static void Postfix(StartOfRound __instance)
         {
             // Get the seed and the level's manager and determine its type
@@ -67,10 +69,13 @@ namespace RemoveTheAnnoying.Patches
             RoundManager manager = RoundManager.Instance;
             InteriorType? type = DetermineType(randomSeed, manager);
 
-           if (manager.currentLevel.name.Equals("Gordion") || 
+            // Check for The Company - I don't know if any of this is necessary
+            if (manager.currentLevel.name.Equals("Gordion") || 
                 manager.currentLevel.PlanetName.Equals("Gordion") ||
+                manager.currentLevel.Equals("CompanyBuilding") ||
                 __instance.currentLevel.PlanetName.Equals("Gordion") ||
-                __instance.currentLevel.name.Equals("Gordion"))
+                __instance.currentLevel.name.Equals("Gordion") ||
+                __instance.currentLevel.sceneName.Equals("CompanyBuilding"))
             {
                 Logger.LogInfo("The Company Building Detected.");
                 return;
@@ -124,8 +129,10 @@ namespace RemoveTheAnnoying.Patches
         [HarmonyPatch(typeof(RoundManager), "GenerateNewFloor")]
         public class GenerateNewFloorPatch
         {
+            // Prefix method - Runs before GenerateNewFloor does in the RoundManager class
             private static bool Prefix(RoundManager __instance)
             {
+                // Modify the current level's dungeonFlowTypes by removing any entry where the id is 4 (Mineshaft ID)
                 __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where((IntWithRarity dungeonFlowType) => dungeonFlowType.id != 4).ToArray();
                 Logger.LogInfo((object)("Removed mineshaft generation of " + ((UnityEngine.Object)__instance.currentLevel) + "."));
                 return true;
@@ -140,19 +147,26 @@ namespace RemoveTheAnnoying.Patches
         /// <returns>The type of the map given the seed, or null if not found.</returns>
         private static InteriorType? DetermineType(int seed, RoundManager manager)
         {
+            // My dumbass throwing shit at the wall and hoping it sticks
             if (manager.currentLevel.name.Equals("Gordion") ||
-                manager.currentLevel.PlanetName.Equals("Gordion"))
+                manager.currentLevel.PlanetName.Equals("Gordion") ||
+                manager.currentLevel.sceneName.Equals("CompanyBuilding"))
             {
                 Logger.LogInfo("The Company Building Detected.");
                 return null;
             }
 
+            // This is 100000% necessary, do not remove this conditional
             if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
             {
+                Logger.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
                 return null;
             }
 
+            // 'seed' the random number so that it is the same sequence everytime - this is what the game does as well
             System.Random rnd = new System.Random(seed);
+
+            // Some debugging
             List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
             Logger.LogDebug("List: " + string.Join(", ", lst));
             int weight = manager.GetRandomWeightedIndex(lst.ToArray(), rnd);
@@ -179,24 +193,35 @@ namespace RemoveTheAnnoying.Patches
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
 
+        // Prefix method - runs before the RoundManager loads the new level
         private static void Prefix(SelectableLevel newLevel)
         {
+            // Only two stinky enemies currently
             foreach (SpawnableEnemyWithRarity e in newLevel.Enemies)
             {
-                // Check for the barber
-                if (e.enemyType.name.Equals("ClaySurgeon"))
+                // Could be a conditional if checking for matches in an array
+                switch (e.enemyType.name)
                 {
-                    DisableEnemy(e);
+                    case "ClaySurgeon":
+                        DisableEnemy(e);
+                        break;
+
+                    case "CaveDweller":
+                        DisableEnemy(e);
+                        break;
+
+                    // Add more bad enemies as needed
+                    default:
+                        break;
                 }
-                
-                // Check for the maneater
-                if (e.enemyType.name.Equals("CaveDweller"))
-                {
-                    DisableEnemy(e);
-                }
+
             }
         }
 
+        /// <summary>
+        /// Given any enemy, sets its rarity (spawn chance) to 0
+        /// </summary>
+        /// <param name="enemy">The desired enemy to alter.</param>
         private static void DisableEnemy(SpawnableEnemyWithRarity enemy)
         {
             enemy.rarity = 0;
