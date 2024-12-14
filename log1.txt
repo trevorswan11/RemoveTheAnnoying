@@ -1,0 +1,143 @@
+[Message:   BepInEx] BepInEx 5.4.23.2 - Lethal Company (12/26/2023 4:08:52 PM)
+[Info   :   BepInEx] Running under Unity v2022.3.9.15351836
+[Info   :   BepInEx] CLR runtime version: 4.0.30319.42000
+[Info   :   BepInEx] Supports SRE: True
+[Info   :   BepInEx] System platform: Bits64, Windows
+[Message:   BepInEx] Preloader started
+[Info   :   BepInEx] Loaded 1 patcher method from [BepInEx.Preloader 5.4.23.2]
+[Info   :   BepInEx] 1 patcher plugin loaded
+[Info   :   BepInEx] Patching [UnityEngine.CoreModule] with [BepInEx.Chainloader]
+[Message:   BepInEx] Preloader finished
+[Message:   BepInEx] Chainloader ready
+[Message:   BepInEx] Chainloader started
+[Info   :   BepInEx] 1 plugin to load
+[Info   :   BepInEx] Loading [Remove Annoying Mechanics 1.0.0]
+[Info   :Kyoshi.RemoveAnnoyingStuff] The game is now more playable!
+[Message:   BepInEx] Chainloader startup complete
+[Info   :Kyoshi.RemoveAnnoyingStuff] Seed: 25304627 is a Manor.
+[Info   :Kyoshi.RemoveAnnoyingStuff] No need to regenerate seed.
+[Info   :Kyoshi.RemoveAnnoyingStuff] Centipede
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandSpider
+[Info   :Kyoshi.RemoveAnnoyingStuff] HoarderBug
+[Info   :Kyoshi.RemoveAnnoyingStuff] Flowerman
+[Info   :Kyoshi.RemoveAnnoyingStuff] Crawler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Blob
+[Info   :Kyoshi.RemoveAnnoyingStuff] DressGirl
+[Info   :Kyoshi.RemoveAnnoyingStuff] Puffer
+[Info   :Kyoshi.RemoveAnnoyingStuff] Nutcracker
+[Info   :Kyoshi.RemoveAnnoyingStuff] RedLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] Doublewing
+[Info   :Kyoshi.RemoveAnnoyingStuff] DocileLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] MouthDog
+[Info   :Kyoshi.RemoveAnnoyingStuff] ForestGiant
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandWorm
+[Info   :Kyoshi.RemoveAnnoyingStuff] RadMech
+[Info   :Kyoshi.RemoveAnnoyingStuff] ClaySurgeon
+[Info   :Kyoshi.RemoveAnnoyingStuff] CaveDweller
+[Info   :Kyoshi.RemoveAnnoyingStuff] FlowerSnake
+[Info   :Kyoshi.RemoveAnnoyingStuff] BaboonHawk
+[Info   :Kyoshi.RemoveAnnoyingStuff] SpringMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] Jester
+[Info   :Kyoshi.RemoveAnnoyingStuff] LassoMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] MaskedPlayerEnemy
+[Info   :Kyoshi.RemoveAnnoyingStuff] Butler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Centipede
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandSpider
+[Info   :Kyoshi.RemoveAnnoyingStuff] HoarderBug
+[Info   :Kyoshi.RemoveAnnoyingStuff] Flowerman
+[Info   :Kyoshi.RemoveAnnoyingStuff] Crawler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Blob
+[Info   :Kyoshi.RemoveAnnoyingStuff] DressGirl
+[Info   :Kyoshi.RemoveAnnoyingStuff] Puffer
+[Info   :Kyoshi.RemoveAnnoyingStuff] Nutcracker
+[Info   :Kyoshi.RemoveAnnoyingStuff] RedLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] Doublewing
+[Info   :Kyoshi.RemoveAnnoyingStuff] DocileLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] MouthDog
+[Info   :Kyoshi.RemoveAnnoyingStuff] ForestGiant
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandWorm
+[Info   :Kyoshi.RemoveAnnoyingStuff] RadMech
+[Info   :Kyoshi.RemoveAnnoyingStuff] ClaySurgeon
+[Info   :Kyoshi.RemoveAnnoyingStuff] CaveDweller
+[Info   :Kyoshi.RemoveAnnoyingStuff] FlowerSnake
+[Info   :Kyoshi.RemoveAnnoyingStuff] BaboonHawk
+[Info   :Kyoshi.RemoveAnnoyingStuff] SpringMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] Jester
+[Info   :Kyoshi.RemoveAnnoyingStuff] LassoMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] MaskedPlayerEnemy
+[Info   :Kyoshi.RemoveAnnoyingStuff] Butler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Centipede
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandSpider
+[Info   :Kyoshi.RemoveAnnoyingStuff] HoarderBug
+[Info   :Kyoshi.RemoveAnnoyingStuff] Flowerman
+[Info   :Kyoshi.RemoveAnnoyingStuff] Crawler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Blob
+[Info   :Kyoshi.RemoveAnnoyingStuff] DressGirl
+[Info   :Kyoshi.RemoveAnnoyingStuff] Puffer
+[Info   :Kyoshi.RemoveAnnoyingStuff] Nutcracker
+[Info   :Kyoshi.RemoveAnnoyingStuff] RedLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] Doublewing
+[Info   :Kyoshi.RemoveAnnoyingStuff] DocileLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] MouthDog
+[Info   :Kyoshi.RemoveAnnoyingStuff] ForestGiant
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandWorm
+[Info   :Kyoshi.RemoveAnnoyingStuff] RadMech
+[Info   :Kyoshi.RemoveAnnoyingStuff] ClaySurgeon
+[Info   :Kyoshi.RemoveAnnoyingStuff] CaveDweller
+[Info   :Kyoshi.RemoveAnnoyingStuff] FlowerSnake
+[Info   :Kyoshi.RemoveAnnoyingStuff] BaboonHawk
+[Info   :Kyoshi.RemoveAnnoyingStuff] SpringMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] Jester
+[Info   :Kyoshi.RemoveAnnoyingStuff] LassoMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] MaskedPlayerEnemy
+[Info   :Kyoshi.RemoveAnnoyingStuff] Butler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Centipede
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandSpider
+[Info   :Kyoshi.RemoveAnnoyingStuff] HoarderBug
+[Info   :Kyoshi.RemoveAnnoyingStuff] Flowerman
+[Info   :Kyoshi.RemoveAnnoyingStuff] Crawler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Blob
+[Info   :Kyoshi.RemoveAnnoyingStuff] DressGirl
+[Info   :Kyoshi.RemoveAnnoyingStuff] Puffer
+[Info   :Kyoshi.RemoveAnnoyingStuff] Nutcracker
+[Info   :Kyoshi.RemoveAnnoyingStuff] RedLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] Doublewing
+[Info   :Kyoshi.RemoveAnnoyingStuff] DocileLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] MouthDog
+[Info   :Kyoshi.RemoveAnnoyingStuff] ForestGiant
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandWorm
+[Info   :Kyoshi.RemoveAnnoyingStuff] RadMech
+[Info   :Kyoshi.RemoveAnnoyingStuff] ClaySurgeon
+[Info   :Kyoshi.RemoveAnnoyingStuff] CaveDweller
+[Info   :Kyoshi.RemoveAnnoyingStuff] FlowerSnake
+[Info   :Kyoshi.RemoveAnnoyingStuff] BaboonHawk
+[Info   :Kyoshi.RemoveAnnoyingStuff] SpringMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] Jester
+[Info   :Kyoshi.RemoveAnnoyingStuff] LassoMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] MaskedPlayerEnemy
+[Info   :Kyoshi.RemoveAnnoyingStuff] Butler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Centipede
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandSpider
+[Info   :Kyoshi.RemoveAnnoyingStuff] HoarderBug
+[Info   :Kyoshi.RemoveAnnoyingStuff] Flowerman
+[Info   :Kyoshi.RemoveAnnoyingStuff] Crawler
+[Info   :Kyoshi.RemoveAnnoyingStuff] Blob
+[Info   :Kyoshi.RemoveAnnoyingStuff] DressGirl
+[Info   :Kyoshi.RemoveAnnoyingStuff] Puffer
+[Info   :Kyoshi.RemoveAnnoyingStuff] Nutcracker
+[Info   :Kyoshi.RemoveAnnoyingStuff] RedLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] Doublewing
+[Info   :Kyoshi.RemoveAnnoyingStuff] DocileLocustBees
+[Info   :Kyoshi.RemoveAnnoyingStuff] MouthDog
+[Info   :Kyoshi.RemoveAnnoyingStuff] ForestGiant
+[Info   :Kyoshi.RemoveAnnoyingStuff] SandWorm
+[Info   :Kyoshi.RemoveAnnoyingStuff] RadMech
+[Info   :Kyoshi.RemoveAnnoyingStuff] ClaySurgeon
+[Info   :Kyoshi.RemoveAnnoyingStuff] CaveDweller
+[Info   :Kyoshi.RemoveAnnoyingStuff] FlowerSnake
+[Info   :Kyoshi.RemoveAnnoyingStuff] BaboonHawk
+[Info   :Kyoshi.RemoveAnnoyingStuff] SpringMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] Jester
+[Info   :Kyoshi.RemoveAnnoyingStuff] LassoMan
+[Info   :Kyoshi.RemoveAnnoyingStuff] MaskedPlayerEnemy
+[Info   :Kyoshi.RemoveAnnoyingStuff] Butler
