@@ -17,7 +17,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.0.2";
+        private const string modVersion = "1.0.3";
 
         private readonly Harmony harmony = new Harmony(modGUID);
 
