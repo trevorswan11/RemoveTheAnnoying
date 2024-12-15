@@ -18,7 +18,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.1.0";
+        private const string modVersion = "1.1.1";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -37,7 +37,7 @@ namespace RemoveTheAnnoying
             }
 
             MineshaftDisabled = Config.Bind<bool>("General", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
-            BarberDisabled = Config.Bind<bool>("General", "DisableBarber", true, "Disables all barber spawning when eneabled.");
+            BarberDisabled = Config.Bind<bool>("General", "DisableBarber", true, "Disables all barber spawning when enabled.");
             ManeaterDisabled = Config.Bind<bool>("General", "DisableManeater", true, "Disables all maneater spawning when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("General", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
 
@@ -78,7 +78,7 @@ namespace RemoveTheAnnoying.Patches
         // Postfix method - runs after round seed is generated
         private static void Postfix(StartOfRound __instance)
         {
-            // Can exit early if the Minesahft is enabled and Artfice is not banning factory
+            // Can exit early if the Mineshaft is enabled and Artifice is not banning factory
             if (!MineshaftDisabled && AllowFactoryArtifice) return;
 
             // Get the seed and the level's manager and determine its type
@@ -122,7 +122,7 @@ namespace RemoveTheAnnoying.Patches
             }
         }
 
-        // Removes mineshaft generationa dn regenerates to find a new seed
+        // Removes mineshaft generation and regenerates to find a new seed
         private static void RemoveMineshaft(InteriorType? type, RoundManager manager, int randomSeed, StartOfRound __instance)
         {
             // Check if the map is ok
@@ -162,7 +162,7 @@ namespace RemoveTheAnnoying.Patches
             Logger.LogWarning("Regeneration failed after 1000 attempts");
         }
 
-        // Removes mineshaft generationa dn regenerates to find a new seed
+        // Removes mineshaft generation and regenerates to find a new seed
         private static void RemoveFactory(InteriorType? type, RoundManager manager, int randomSeed, StartOfRound __instance)
         {
             // Check if the map is ok
@@ -268,7 +268,7 @@ namespace RemoveTheAnnoying.Patches
                     return null;
                 }
 
-                // 'seed' the random number so that it is the same sequence everytime - this is what the game does as well
+                // 'seed' the random number so that it is the same sequence every time - this is what the game does as well
                 System.Random rnd = new System.Random(seed);
 
                 // Some debugging
