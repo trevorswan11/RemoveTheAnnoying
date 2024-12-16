@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
 using UnityEngine;
@@ -49,6 +51,15 @@ namespace RemoveTheAnnoying
             harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
 
             mls.LogInfo("The game is now more playable!");
+            ConfigStatus();
+        }
+
+        void ConfigStatus()
+        {
+            mls.LogDebug($"Config DisableMineshaft = {MineshaftDisabled.Value}");
+            mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
+            mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
+            mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
         }
     }
 
@@ -79,14 +90,18 @@ namespace RemoveTheAnnoying.Patches
         private static void Postfix(StartOfRound __instance)
         {
             // Can exit early if the Mineshaft is enabled and Artifice is not banning factory
-            if (!MineshaftDisabled && AllowFactoryArtifice) return;
+            if (!MineshaftDisabled && AllowFactoryArtifice)
+            {
+                Logger.LogInfo("All interiors are enabled, so I won't regenerate the seed.");
+                return;
+            }
 
             // Get the seed and the level's manager and determine its type
             int randomSeed = __instance.randomMapSeed;
             RoundManager manager = RoundManager.Instance;
             InteriorType? type = DetermineType(randomSeed, manager);
             string levelName = __instance.currentLevel.name.Replace("Level", "");
-
+            
             // Check for The Company - I don't know if any of this is necessary
             if (ManagerIsCompany(manager) || StartOfRoundIsCompany(__instance))
             {
