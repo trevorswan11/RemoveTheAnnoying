@@ -1,0 +1,9 @@
+{
+	"name": "RemoveTheAnnoying",
+	"version_number": "1.2.0",
+	"description": "Provides config options that prevent generation of mineshafts, prevent spawning of barbers and maneaters, disabling Artifice facility as well, and a fix for players driving a cruiser connected to the ship's magnet.",
+	"website_url": "https://github.com/trevorswan11/RemoveTheAnnoying.git",
+	"dependencies": [
+		"BepInEx-BepInExPack-5.4.2100"
+	]
+}

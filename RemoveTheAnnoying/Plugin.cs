@@ -20,7 +20,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.1.1";
+        private const string modVersion = "1.2.0";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -30,6 +30,7 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> BarberDisabled { get; private set; }
         public ConfigEntry<bool> ManeaterDisabled { get; private set; }
         public ConfigEntry<bool> AllowFactoryArtifice { get; private set; }
+        public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
 
         void Awake()
         {
@@ -42,6 +43,7 @@ namespace RemoveTheAnnoying
             BarberDisabled = Config.Bind<bool>("General", "DisableBarber", true, "Disables all barber spawning when enabled.");
             ManeaterDisabled = Config.Bind<bool>("General", "DisableManeater", true, "Disables all maneater spawning when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("General", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
+            CruiserTeleportFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Teleports players in the cruiser's driver or passenger seat into ship if magnetted and the ship is leaving.");
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             mls.LogInfo("Patching some QoL files!");
@@ -49,6 +51,7 @@ namespace RemoveTheAnnoying
             harmony.PatchAll(typeof(RemoveAnnoyingBase));
             harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
             harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
+            harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
 
             mls.LogInfo("The game is now more playable!");
             ConfigStatus();
@@ -60,6 +63,7 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
+            mls.LogDebug($"Config CruiserTeleportFix = {CruiserTeleportFix.Value}");
         }
     }
 }
@@ -415,6 +419,61 @@ namespace RemoveTheAnnoying.Patches
                 return true;
             }
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(StartOfRound), "ForcePlayerIntoShip")]
+    public class CruiserSeatTeleportPatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly bool CruiserTeleportEnabled = RemoveAnnoyingBase.Instance.CruiserTeleportFix.Value;
+
+        // This will run before ForcePlayerIntoShip due to Prefix name
+        private static void Prefix(StartOfRound __instance)
+        {
+            // Check to see if the ship is leaving or Magent is not on
+            if (!IsShipLeaving(__instance) || !IsMagnetProper(__instance)) return;
+
+            // Check the current config option
+            if (!CruiserTeleportEnabled)
+            {
+                Logger.LogInfo("Cruiser fix diabled by user, I won't proceed.");
+                return;
+            }
+
+            // Perform teleport
+            VehicleController cruiser = __instance.attachedVehicle;
+            PlayerControllerB playerA = cruiser.currentDriver;
+            bool successA = TeleportPlayerToTerminal(playerA);
+            PlayerControllerB playerB = cruiser.currentPassenger;
+            bool successB = TeleportPlayerToTerminal(playerB);
+
+            // Report the result of the teleport
+            if (successA && successB) Logger.LogInfo("Successfully teleported both players.");
+            else if (successA ^ successB) Logger.LogInfo("Successfully teleported one player.");
+            else Logger.LogInfo("Could not teleport any players.");
+
+            // Debug message at the end
+            Logger.LogDebug("Teleport seqeunce exited without any errors :)");
+        }
+
+        private static bool IsShipLeaving(StartOfRound startOfRound)
+        {
+            return startOfRound.shipIsLeaving || startOfRound.shipLeftAutomatically;
+        }
+
+        private static bool IsMagnetProper(StartOfRound startOfRound)
+        {
+            return startOfRound.magnetOn || startOfRound.isObjectAttachedToMagnet;
+        }
+
+        private static bool TeleportPlayerToTerminal(PlayerControllerB player)
+        {
+            if (player == null) return false;
+            Terminal term = UnityEngine.Object.FindObjectOfType<Terminal>();
+            player.TeleportPlayer(term.transform.position);
+            Logger.LogInfo($"Successfully teleported {player.playerSteamId} to Ship.");
+            return true;
         }
     }
 }
