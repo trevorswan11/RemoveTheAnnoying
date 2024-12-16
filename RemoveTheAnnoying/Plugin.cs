@@ -62,16 +62,6 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
         }
     }
-
-    /// <summary>
-    /// The different interior types for the current version.
-    /// </summary>
-    public enum InteriorType
-    {
-        Factory = 0,
-        Manor = 1,
-        Mineshaft = 4
-    }
 }
 
 namespace RemoveTheAnnoying.Patches
@@ -85,6 +75,11 @@ namespace RemoveTheAnnoying.Patches
 
         private const int MaxSeedAttempts = 1000;
         private const int MaxSeedValue = 100_000_000;
+
+        public enum InteriorType
+        {
+            Factory = 0, Manor = 1, Mineshaft = 4
+        }
 
         // Postfix method - runs after round seed is generated
         private static void Postfix(StartOfRound __instance)
