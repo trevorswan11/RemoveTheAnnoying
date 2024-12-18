@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
-using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace RemoveTheAnnoying
 {
@@ -20,7 +15,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.2.0";
+        private const string modVersion = "1.3.0";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -31,9 +26,11 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> ManeaterDisabled { get; private set; }
         public ConfigEntry<bool> AllowFactoryArtifice { get; private set; }
         public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
+        public ConfigEntry<bool> IncreasedArtificeScrap { get; private set; }
 
         void Awake()
         {
+            // Singleton who
             if (Instance == null)
             {
                 Instance = this;
@@ -44,14 +41,19 @@ namespace RemoveTheAnnoying
             ManeaterDisabled = Config.Bind<bool>("General", "DisableManeater", true, "Disables all maneater spawning when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("General", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
             CruiserTeleportFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Teleports players in the cruiser's driver or passenger seat into ship if magnetted and the ship is leaving.");
+            IncreasedArtificeScrap = Config.Bind<bool>("General", "IncreasedArtificeScrap", false, "Sets the minimum scrap of Artifice to 31 and the maximum to 37. These are the values from v56.");
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             mls.LogInfo("Patching some QoL files!");
-
+            
+            // Base Patch
             harmony.PatchAll(typeof(RemoveAnnoyingBase));
+
+            // All other patches
             harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
             harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
             harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
+            harmony.PatchAll(typeof(ArtificeScrapPatch));
 
             mls.LogInfo("The game is now more playable!");
             ConfigStatus();
@@ -64,6 +66,7 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
             mls.LogDebug($"Config CruiserTeleportFix = {CruiserTeleportFix.Value}");
+            mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
         }
     }
 }
@@ -73,6 +76,44 @@ namespace RemoveTheAnnoying.Patches
     [HarmonyPatch(typeof(StartOfRound), "ChooseNewRandomMapSeed")]
     public class ChooseNewRandomMapSeedPatch
     {
+        [HarmonyPatch(typeof(RoundManager), "GenerateNewFloor")]
+        public class GenerateNewFloorPatch
+        {
+            private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+            private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
+            private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
+
+            private static bool Prefix(RoundManager __instance)
+            {
+                string levelName = __instance.currentLevel.name.Replace("Level", "");
+                try
+                {
+                    if (MineshaftDisabled)
+                    {
+                        // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
+                        __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotMineshaft).ToArray();
+                        Logger.LogDebug($"Removed mineshaft generation of {levelName}.");
+                    }
+
+                    if (levelName.Equals("Artifice") && !AllowFactoryArtifice)
+                    {
+                        // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
+                        __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotFactory).ToArray();
+                        Logger.LogDebug($"Removed factory generation of {levelName}.");
+                    }
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning($"Error removing interior type: {ex.Message}");
+                    return false;
+                }
+            }
+
+            private static bool IsNotMineshaft(IntWithRarity flow) => flow.id != (int)InteriorType.Mineshaft;
+            private static bool IsNotFactory(IntWithRarity flow) => flow.id != (int)InteriorType.Factory;
+        }
+
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
         private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
@@ -80,12 +121,13 @@ namespace RemoveTheAnnoying.Patches
         private const int MaxSeedAttempts = 1000;
         private const int MaxSeedValue = 100_000_000;
 
+        private static readonly Dictionary<int?, string> interiorMap = new Dictionary<int?, string>();
+
         public enum InteriorType
         {
             Factory = 0, Manor = 1, Mineshaft = 4
         }
 
-        // Postfix method - runs after round seed is generated
         private static void Postfix(StartOfRound __instance)
         {
             // Can exit early if the Mineshaft is enabled and Artifice is not banning factory
@@ -95,148 +137,72 @@ namespace RemoveTheAnnoying.Patches
                 return;
             }
 
-            // Get the seed and the level's manager and determine its type
+            // Initializations
+            Logger.LogDebug($"Initialize Dictionary: {InitializeInteriorDict()}");
             int randomSeed = __instance.randomMapSeed;
             RoundManager manager = RoundManager.Instance;
             InteriorType? type = DetermineType(randomSeed, manager);
             string levelName = __instance.currentLevel.name.Replace("Level", "");
-            
-            // Check for The Company - I don't know if any of this is necessary
-            if (ManagerIsCompany(manager) || StartOfRoundIsCompany(__instance))
-            {
-                Logger.LogDebug("The Company Building Detected.");
-                return;
-            }
 
             // Check if the interior type is valid
             if (!type.HasValue) return;
 
             type = type.Value;
             Logger.LogInfo($"Seed: {randomSeed} is a {type}.");
+            InteriorType?[][] removeables = GetRemoveables();
 
-            // Mineshaft disabled and artifice CAN spawn factory
-            if (MineshaftDisabled && AllowFactoryArtifice)
+            if (MineshaftDisabled)
             {
-                RemoveMineshaft(type, manager, randomSeed, __instance);
+                if (AllowFactoryArtifice)
+                {
+                    RemoveInteriorGeneration(type, removeables[0], manager, __instance);
+                }
+                else if (!AllowFactoryArtifice && levelName.Equals("Artifice"))
+                {
+                    RemoveInteriorGeneration(type, removeables[5], manager, __instance);
+                }
             }
 
-            // Mineshaft disabled and artifice CANNOT spawn factory
-            else if (MineshaftDisabled && !AllowFactoryArtifice)
+            else if (!MineshaftDisabled)
             {
-                // Only force manor on artifice
-                if (levelName.Equals("Artifice")) ManorOnly(type, manager, randomSeed, __instance);
-                else RemoveMineshaft(type, manager, randomSeed, __instance);
-            }
-
-            // Mineshaft enabled and artifice cannot spawn factory
-            else if (!MineshaftDisabled && !AllowFactoryArtifice)
-            {
-                // Only block Factory on artifice
-                if (levelName.Equals("Artifice")) RemoveFactory(type, manager, randomSeed, __instance);
+                // Only block Factory on artifice if requested
+                if (!AllowFactoryArtifice && levelName.Equals("Artifice"))
+                {
+                    RemoveInteriorGeneration(type, removeables[2], manager, __instance);
+                }
             }
         }
 
-        // Removes mineshaft generation and regenerates to find a new seed
-        private static void RemoveMineshaft(InteriorType? type, RoundManager manager, int randomSeed, StartOfRound __instance)
+        private static void RemoveInteriorGeneration(InteriorType? currentType, 
+            InteriorType?[] dissallowedTypes, RoundManager manager, StartOfRound __instance)
         {
-            // Check if the map is ok
-            if (type.GetValueOrDefault() != InteriorType.Mineshaft)
+            // Return if types are not provided, or if every interior is requested to be removed
+            if (dissallowedTypes.Length == 0 || dissallowedTypes.Length == 3) return;
+            if(dissallowedTypes == null || dissallowedTypes.Contains(null)) return;
+
+            // Determine what the user wants to play
+            if (!dissallowedTypes.Contains(currentType))
             {
                 Logger.LogInfo("No need to regenerate seed.");
                 return;
             }
 
-            // Otherwise the map must be a mineshaft
-            Logger.LogInfo("Mineshaft seed identified, trying to regenerate...");
+            // Get the names of the dissallowed types
+            int?[] dissallowed = dissallowedTypes.Select(dt => (int?)dt.Value).ToArray();
+            string[] names = dissallowedTypes.Select(dt => interiorMap[(int)dt.Value]).ToArray();
+            IEnumerable<string> zipped = names.Zip(dissallowed, (name, typeVal) => $"{name}: {typeVal}");
+            Logger.LogDebug($"Current: {currentType}; Dissallowed: {string.Join(", ", zipped)}");
+
+            // Log the types that are dissallowed
+            Logger.LogInfo($"{string.Join(" or ", names)} seed identified, trying to regenerate...");
             manager.hasInitializedLevelRandomSeed = false;
             manager.InitializeRandomNumberGenerators();
 
-            // Limit to 1000 total generation attempts
+            // Limit reroll attempts to the specified amount
             for (int i = 0; i < MaxSeedAttempts; i++)
             {
-                randomSeed = NewSeed();
-                type = DetermineType((int)randomSeed, manager);
-                Logger.LogDebug($"Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
-
-                // Check for valid interior type
-                if (!type.HasValue)
-                {
-                    Logger.LogWarning("Detected unknown interior.");
-                    return;
-                }
-
-                // Check for mineshaft
-                if (new InteriorType?(type.Value).GetValueOrDefault() != InteriorType.Mineshaft)
-                {
-                    __instance.randomMapSeed = randomSeed;
-                    Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
-                    return;
-                }
-            }
-            Logger.LogWarning("Regeneration failed after 1000 attempts");
-        }
-
-        // Removes mineshaft generation and regenerates to find a new seed
-        private static void RemoveFactory(InteriorType? type, RoundManager manager, int randomSeed, StartOfRound __instance)
-        {
-            // Check if the map is ok
-            if (type.GetValueOrDefault() != InteriorType.Factory)
-            {
-                Logger.LogInfo("No need to regenerate seed.");
-                return;
-            }
-
-            // Otherwise the map must be a factory
-            Logger.LogInfo("Factory seed identified, trying to regenerate...");
-            manager.hasInitializedLevelRandomSeed = false;
-            manager.InitializeRandomNumberGenerators();
-
-            // Limit to 1000 total generation attempts
-            for (int i = 0; i < MaxSeedAttempts; i++)
-            {
-                randomSeed = NewSeed();
-                type = DetermineType((int)randomSeed, manager);
-                Logger.LogDebug($"Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
-
-                // Check for valid interior type
-                if (!type.HasValue)
-                {
-                    Logger.LogWarning("Detected unknown interior.");
-                    return;
-                }
-
-                // Check for mineshaft
-                if (new InteriorType?(type.Value).GetValueOrDefault() != InteriorType.Factory)
-                {
-                    __instance.randomMapSeed = randomSeed;
-                    Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
-                    return;
-                }
-            }
-            Logger.LogWarning("Regeneration failed after 1000 attempts");
-        }
-
-        // Removes both Factory and Mineshaft interior
-        private static void ManorOnly(InteriorType? type, RoundManager manager, int randomSeed, StartOfRound __instance)
-        {
-            // Check if the map is ok
-            if (type.GetValueOrDefault() != InteriorType.Mineshaft &&
-                type.GetValueOrDefault() != InteriorType.Factory)
-            {
-                Logger.LogInfo("No need to regenerate seed.");
-                return;
-            }
-
-            // Otherwise the map must be a mineshaft or factory
-            Logger.LogInfo("Mineshaft or Factory seed identified, trying to regenerate...");
-            manager.hasInitializedLevelRandomSeed = false;
-            manager.InitializeRandomNumberGenerators();
-
-            // Limit to 1000 total generation attempts
-            for (int i = 0; i < MaxSeedAttempts; i++)
-            {
-                randomSeed = NewSeed();
-                type = DetermineType((int)randomSeed, manager);
+                int randomSeed = NewSeed();
+                InteriorType? type = DetermineType((int)randomSeed, manager);
                 Logger.LogDebug($"Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
 
                 // Check for valid interior type
@@ -247,8 +213,7 @@ namespace RemoveTheAnnoying.Patches
                 }
 
                 // Check for mineshaft or factory generation
-                if (new InteriorType?(type.Value).GetValueOrDefault() != InteriorType.Mineshaft &&
-                    new InteriorType?(type.Value).GetValueOrDefault() != InteriorType.Factory)
+                if (!dissallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault()))
                 {
                     __instance.randomMapSeed = randomSeed;
                     Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
@@ -258,17 +223,11 @@ namespace RemoveTheAnnoying.Patches
             Logger.LogWarning("Regeneration failed after 1000 attempts");
         }
 
-        /// <summary>
-        /// Uses a given seed and round manager to determine the interior type.
-        /// </summary>
-        /// <param name="seed">The current map seed as an int.</param>
-        /// <param name="manager">The custom current RoundManager object.</param>
-        /// <returns>The type of the map given the seed, or null if not found.</returns>
         private static InteriorType? DetermineType(int seed, RoundManager manager)
         {
             try
             {
-                // My dumbass throwing shit at the wall and hoping it sticks
+                // Realistically, this condiitonal will never be entered
                 if (ManagerIsCompany(manager))
                 {
                     Logger.LogDebug("The Company Building Detected.");
@@ -283,7 +242,7 @@ namespace RemoveTheAnnoying.Patches
                 }
 
                 // 'seed' the random number so that it is the same sequence every time - this is what the game does as well
-                System.Random rnd = new System.Random(seed);
+                Random rnd = new Random(seed);
 
                 // Some debugging
                 List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
@@ -306,52 +265,36 @@ namespace RemoveTheAnnoying.Patches
             }
         }
 
-        /// <summary>
-        /// Generates a new random seed.
-        /// </summary>
-        /// <returns>An int value between 1 and 100 million</returns>
-        private static int NewSeed() => new System.Random().Next(1, MaxSeedValue);
+        private static int NewSeed() => new Random().Next(1, MaxSeedValue);
 
         private static bool ManagerIsCompany(RoundManager manager)
         {
-            return manager.currentLevel.name.Equals("Gordion") ||
-                manager.currentLevel.PlanetName.Equals("Gordion") ||
-                manager.currentLevel.Equals("CompanyBuilding");
+            string levelName = manager.currentLevel.name.Replace("Level", "");
+            return levelName.Equals("CompanyBuilding");
         }
 
-        private static bool StartOfRoundIsCompany(StartOfRound startOfRound)
+        private static bool InitializeInteriorDict()
         {
-            return startOfRound.currentLevel.PlanetName.Equals("Gordion") ||
-                startOfRound.currentLevel.name.Equals("Gordion") ||
-                startOfRound.currentLevel.sceneName.Equals("CompanyBuilding");
+            if (interiorMap.ContainsKey(0)) return false;
+            interiorMap.Add(0, "Factory");
+            interiorMap.Add(1, "Manor");
+            interiorMap.Add(4, "Mineshaft");
+            return true;
         }
 
-        [HarmonyPatch(typeof(RoundManager), "GenerateNewFloor")]
-        public class GenerateNewFloorPatch
+        /// <summary>
+        /// Indices: 0 is Mine, 1 is Manor, 2 is Fact, 3 = Mine/Manor, 4 is Fact/Manor, 5 is Mine/Fact
+        /// </summary>
+        private static InteriorType?[][] GetRemoveables()
         {
-            // Prefix method - Runs before GenerateNewFloor does in the RoundManager class
-            private static bool Prefix(RoundManager __instance)
-            {
-                string levelName = __instance.currentLevel.name.Replace("Level", "");
-
-                if (MineshaftDisabled)
-                {
-                    // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
-                    __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotMineshaft).ToArray();
-                    Logger.LogDebug($"Removed mineshaft generation of {levelName}.");
-                }
-
-                if (levelName.Equals("Artifice") && !AllowFactoryArtifice)
-                {
-                    // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
-                    __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotFactory).ToArray();
-                    Logger.LogDebug($"Removed factory generation of {levelName}.");
-                }
-                return true;
-            }
-
-            private static bool IsNotMineshaft(IntWithRarity flow) => flow.id != (int)InteriorType.Mineshaft;
-            private static bool IsNotFactory(IntWithRarity flow) => flow.id != (int)InteriorType.Factory;
+            InteriorType?[][] toRemove = new InteriorType?[6][];
+            toRemove[0] = new InteriorType?[] { InteriorType.Mineshaft };
+            toRemove[1] = new InteriorType?[] { InteriorType.Manor };
+            toRemove[2] = new InteriorType?[] { InteriorType.Factory };
+            toRemove[3] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Manor };
+            toRemove[4] = new InteriorType?[] { InteriorType.Factory, InteriorType.Manor };
+            toRemove[5] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Factory };
+            return toRemove;
         }
     }
 
@@ -364,9 +307,11 @@ namespace RemoveTheAnnoying.Patches
         private static readonly bool BarberDisabled = RemoveAnnoyingBase.Instance.BarberDisabled.Value;
         private static readonly bool ManeaterDisabled = RemoveAnnoyingBase.Instance.ManeaterDisabled.Value;
 
-        // Prefix method - runs before the RoundManager loads the new level
         private static void Prefix(SelectableLevel newLevel)
         {
+            // Check for company
+            if (SelectableLevelIsCompany(newLevel)) return;
+
             // Check if the user is ok with both enemies
             if (!BarberDisabled && !ManeaterDisabled)
             {
@@ -391,10 +336,6 @@ namespace RemoveTheAnnoying.Patches
             Logger.LogDebug("Level will not spawn any unfun enemies.");
         }
 
-        /// <summary>
-        /// Given any enemy, sets its rarity (spawn chance) to 0 if in set of disabled enemies
-        /// </summary>
-        /// <param name="enemy">The desired enemy to alter.</param>
         private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy)
         {
             string enemyName = enemy.enemyType.name;
@@ -420,6 +361,12 @@ namespace RemoveTheAnnoying.Patches
             }
             return false;
         }
+
+        private static bool SelectableLevelIsCompany(SelectableLevel selectableLevel)
+        {
+            string levelName = selectableLevel.name.Replace("Level", "");
+            return levelName.Equals("CompanyBuilding");
+        }
     }
 
     [HarmonyPatch(typeof(StartOfRound), "ForcePlayerIntoShip")]
@@ -428,7 +375,6 @@ namespace RemoveTheAnnoying.Patches
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly bool CruiserTeleportEnabled = RemoveAnnoyingBase.Instance.CruiserTeleportFix.Value;
 
-        // This will run before ForcePlayerIntoShip due to Prefix name
         private static void Prefix(StartOfRound __instance)
         {
             // Check to see if the ship is leaving or Magent is not on
@@ -472,8 +418,41 @@ namespace RemoveTheAnnoying.Patches
             if (player == null) return false;
             Terminal term = UnityEngine.Object.FindObjectOfType<Terminal>();
             player.TeleportPlayer(term.transform.position);
-            Logger.LogInfo($"Successfully teleported {player.playerSteamId} to Ship.");
+            Logger.LogInfo($"Successfully teleported {player.playerUsername} to Ship.");
             return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(RoundManager), "SpawnScrapInLevel")]
+    public class ArtificeScrapPatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly bool IncreasedArtificeScrapEnabled = RemoveAnnoyingBase.Instance.IncreasedArtificeScrap.Value;
+
+        public static int v56ArtMin = 31;
+        public static int v56ArtMax = 37;
+
+        private static void Prefix(SelectableLevel ___currentLevel)
+        {
+            // Check the config option set by user
+            if (!IncreasedArtificeScrapEnabled)
+            {
+                Logger.LogInfo("Artifice scrap increase diabled, I won't proceed.");
+                return;
+            }
+
+            // Check if the player is actualy on art
+            string levelName = ___currentLevel.name.Replace("Level", "");
+            if (levelName.Equals("Artifice"))
+            {
+                Logger.LogDebug("Attempting to alter scrap spawnrates...");
+                ___currentLevel.minScrap = v56ArtMin;
+                ___currentLevel.maxScrap = v56ArtMax;
+                Logger.LogInfo($"I successfully updated Artifice's scrap to a range of ({v56ArtMin},{v56ArtMax})");
+                return;
+            }
+            Logger.LogInfo("Current moon is not Artifice.");
+            return;
         }
     }
 }
