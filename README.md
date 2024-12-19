@@ -5,3 +5,4 @@ The mod will prevent all spawning of Barbers and Maneaters, and prevents the Min
 
 This mod was created so that my friends and I would be able to have more fun in our day-to-day playing.
 
+Mod Link: [RemoveTheAnnoying](https://thunderstore.io/c/lethal-company/p/KyoshiYoshi/RemoveTheAnnoying/versions/)
