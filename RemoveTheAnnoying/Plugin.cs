@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
+using UnityEngine;
 
 namespace RemoveTheAnnoying
 {
@@ -15,7 +18,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.3.0";
+        private const string modVersion = "1.3.2";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -179,7 +182,7 @@ namespace RemoveTheAnnoying.Patches
             // Return if types are not provided, or if every interior is requested to be removed
             if (dissallowedTypes.Length == 0 || dissallowedTypes.Length == 3) return;
             if(dissallowedTypes == null || dissallowedTypes.Contains(null)) return;
-
+            
             // Determine what the user wants to play
             if (!dissallowedTypes.Contains(currentType))
             {
@@ -242,7 +245,7 @@ namespace RemoveTheAnnoying.Patches
                 }
 
                 // 'seed' the random number so that it is the same sequence every time - this is what the game does as well
-                Random rnd = new Random(seed);
+                System.Random rnd = new System.Random(seed);
 
                 // Some debugging
                 List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
@@ -265,7 +268,7 @@ namespace RemoveTheAnnoying.Patches
             }
         }
 
-        private static int NewSeed() => new Random().Next(1, MaxSeedValue);
+        private static int NewSeed() => new System.Random().Next(1, MaxSeedValue);
 
         private static bool ManagerIsCompany(RoundManager manager)
         {
@@ -369,13 +372,14 @@ namespace RemoveTheAnnoying.Patches
         }
     }
 
-    [HarmonyPatch(typeof(StartOfRound), "ForcePlayerIntoShip")]
+    [HarmonyPatch(typeof(StartOfRound), "ShipLeave")]
     public class CruiserSeatTeleportPatch
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly bool CruiserTeleportEnabled = RemoveAnnoyingBase.Instance.CruiserTeleportFix.Value;
+        private static readonly float TeleportDelay = 3.642f;
 
-        private static void Prefix(StartOfRound __instance)
+        private async static void Postfix(StartOfRound __instance)
         {
             // Check to see if the ship is leaving or Magent is not on
             if (!IsShipLeaving(__instance) || !IsMagnetProper(__instance)) return;
@@ -386,8 +390,17 @@ namespace RemoveTheAnnoying.Patches
                 Logger.LogInfo("Cruiser fix diabled by user, I won't proceed.");
                 return;
             }
+            await ExecuteAfterDelay(TeleportDelay, __instance);
+        }
 
-            // Perform teleport
+        private static async Task ExecuteAfterDelay(float delay, StartOfRound __instance)
+        {
+            await Task.Delay((int)(delay * 1000));
+            TeleportSequence(__instance);
+        }
+
+        private static void TeleportSequence(StartOfRound __instance)
+        {
             VehicleController cruiser = __instance.attachedVehicle;
             PlayerControllerB playerA = cruiser.currentDriver;
             bool successA = TeleportPlayerToTerminal(playerA);
@@ -419,6 +432,7 @@ namespace RemoveTheAnnoying.Patches
             Terminal term = UnityEngine.Object.FindObjectOfType<Terminal>();
             player.TeleportPlayer(term.transform.position);
             Logger.LogInfo($"Successfully teleported {player.playerUsername} to Ship.");
+            player.isInHangarShipRoom = true;
             return true;
         }
     }
