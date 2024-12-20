@@ -1,0 +1,9 @@
+{
+	"name": "RemoveTheAnnoying",
+	"version_number": "1.3.2",
+	"description": "A configurable mod to disable mineshafts, Barbers, Maneaters, and Artifice facilities. It also allows you to adjust Artifice scrap spawns, and fix players being marked 'missing' when magnet-linked cruisers depart.",
+	"website_url": "https://github.com/trevorswan11/RemoveTheAnnoying.git",
+	"dependencies": [
+		"BepInEx-BepInExPack-5.4.2100"
+	]
+}

@@ -30,6 +30,7 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> AllowFactoryArtifice { get; private set; }
         public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
         public ConfigEntry<bool> IncreasedArtificeScrap { get; private set; }
+        public ConfigEntry<bool> AttemptForceManor { get; private set; }
 
         void Awake()
         {
@@ -39,12 +40,16 @@ namespace RemoveTheAnnoying
                 Instance = this;
             }
 
-            MineshaftDisabled = Config.Bind<bool>("General", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
-            BarberDisabled = Config.Bind<bool>("General", "DisableBarber", true, "Disables all barber spawning when enabled.");
-            ManeaterDisabled = Config.Bind<bool>("General", "DisableManeater", true, "Disables all maneater spawning when enabled.");
-            AllowFactoryArtifice = Config.Bind<bool>("General", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
             CruiserTeleportFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Teleports players in the cruiser's driver or passenger seat into ship if magnetted and the ship is leaving.");
-            IncreasedArtificeScrap = Config.Bind<bool>("General", "IncreasedArtificeScrap", false, "Sets the minimum scrap of Artifice to 31 and the maximum to 37. These are the values from v56.");
+
+            MineshaftDisabled = Config.Bind<bool>("Interior Generation", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
+            AllowFactoryArtifice = Config.Bind<bool>("Interior Generation", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
+            AttemptForceManor = Config.Bind<bool>("Interior Generation", "AttemptForceManor", false, "Attempts to force manor generation on all moons, when possible. Overrides all other interior config settings");
+
+            BarberDisabled = Config.Bind<bool>("Enemies", "DisableBarber", true, "Disables all barber spawning when enabled.");
+            ManeaterDisabled = Config.Bind<bool>("Enemies", "DisableManeater", true, "Disables all maneater spawning when enabled.");
+
+            IncreasedArtificeScrap = Config.Bind<bool>("High Quota", "IncreasedArtificeScrap", false, "Sets the minimum scrap of Artifice to 31 and the maximum to 37. These are the values from v56.");
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             mls.LogInfo("Patching some QoL files!");
@@ -64,11 +69,12 @@ namespace RemoveTheAnnoying
 
         void ConfigStatus()
         {
+            mls.LogDebug($"Config CruiserTeleportFix = {CruiserTeleportFix.Value}");
             mls.LogDebug($"Config DisableMineshaft = {MineshaftDisabled.Value}");
+            mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
+            mls.LogDebug($"Config AttemptForceManor = {AttemptForceManor.Value}");
             mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
-            mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
-            mls.LogDebug($"Config CruiserTeleportFix = {CruiserTeleportFix.Value}");
             mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
         }
     }
@@ -120,6 +126,7 @@ namespace RemoveTheAnnoying.Patches
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
         private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
+        private static readonly bool ManorForced = RemoveAnnoyingBase.Instance.AttemptForceManor.Value;
 
         private const int MaxSeedAttempts = 1000;
         private const int MaxSeedValue = 100_000_000;
@@ -153,41 +160,59 @@ namespace RemoveTheAnnoying.Patches
             type = type.Value;
             Logger.LogInfo($"Seed: {randomSeed} is a {type}.");
             InteriorType?[][] removeables = GetRemoveables();
+            bool levelIsArtifice = levelName.Equals("Artifice");
 
-            if (MineshaftDisabled)
+            if (ManorForced)
+            {
+                if (!RemoveInteriorGeneration(type, removeables[5], manager, __instance))
+                {
+                    Logger.LogDebug("Forcing Manor was unsuccessful, defaulting to other interior config rules...");
+                    if (MineshaftDisabled) RemoveInteriorGeneration(type, removeables[0], manager, __instance);
+                    else if (!AllowFactoryArtifice && levelIsArtifice)
+                    {
+                        RemoveInteriorGeneration(type, removeables[2], manager, __instance);
+                    }
+                }
+            }
+
+            else if (MineshaftDisabled)
             {
                 if (AllowFactoryArtifice)
                 {
                     RemoveInteriorGeneration(type, removeables[0], manager, __instance);
                 }
-                else if (!AllowFactoryArtifice && levelName.Equals("Artifice"))
+                else if (!AllowFactoryArtifice && levelIsArtifice)
                 {
                     RemoveInteriorGeneration(type, removeables[5], manager, __instance);
+                }
+                else
+                {
+                    RemoveInteriorGeneration(type, removeables[0], manager, __instance);
                 }
             }
 
             else if (!MineshaftDisabled)
             {
                 // Only block Factory on artifice if requested
-                if (!AllowFactoryArtifice && levelName.Equals("Artifice"))
+                if (!AllowFactoryArtifice && levelIsArtifice)
                 {
                     RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                 }
             }
         }
 
-        private static void RemoveInteriorGeneration(InteriorType? currentType, 
+        private static bool RemoveInteriorGeneration(InteriorType? currentType, 
             InteriorType?[] dissallowedTypes, RoundManager manager, StartOfRound __instance)
         {
             // Return if types are not provided, or if every interior is requested to be removed
-            if (dissallowedTypes.Length == 0 || dissallowedTypes.Length == 3) return;
-            if(dissallowedTypes == null || dissallowedTypes.Contains(null)) return;
+            if (dissallowedTypes.Length == 0 || dissallowedTypes.Length == 3) return false;
+            if(dissallowedTypes == null || dissallowedTypes.Contains(null)) return false;
             
             // Determine what the user wants to play
             if (!dissallowedTypes.Contains(currentType))
             {
                 Logger.LogInfo("No need to regenerate seed.");
-                return;
+                return false;
             }
 
             // Get the names of the dissallowed types
@@ -212,7 +237,7 @@ namespace RemoveTheAnnoying.Patches
                 if (!type.HasValue)
                 {
                     Logger.LogWarning("Detected unknown interior.");
-                    return;
+                    return false;
                 }
 
                 // Check for mineshaft or factory generation
@@ -220,10 +245,11 @@ namespace RemoveTheAnnoying.Patches
                 {
                     __instance.randomMapSeed = randomSeed;
                     Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
-                    return;
+                    return true;
                 }
             }
             Logger.LogWarning("Regeneration failed after 1000 attempts");
+            return false;
         }
 
         private static InteriorType? DetermineType(int seed, RoundManager manager)
