@@ -21,7 +21,7 @@
     - Seed Rerolling is now much more intuitive and contains better logging
         - Should be easier to adopt into other projects if desired
     - This will most likely be the last update for a bit, as I'll be playing the game more and coding less
-        - Happy Holidays! If any issues arise in your gameplay with this mod, please open an [issue](https://github.com/trevorswan11/RemoveTheAnnoying/issues) on the repository's GitHub! 
+        - Happy Holidays! If any issues arise in your gameplay with this mod, please open an [issue](https://github.com/trevorswan11/RemoveTheAnnoying/issues) on GitHub! 
 
 - **1.2.0**
 
