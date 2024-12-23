@@ -18,7 +18,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.3.2";
+        private const string modVersion = "1.3.3";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -408,7 +408,7 @@ namespace RemoveTheAnnoying.Patches
         private async static void Postfix(StartOfRound __instance)
         {
             // Check to see if the ship is leaving or Magent is not on
-            if (!IsShipLeaving(__instance) || !IsMagnetProper(__instance)) return;
+            if (!IsShipLeaving(__instance)) return;
 
             // Check the current config option
             if (!CruiserTeleportEnabled)
@@ -427,6 +427,7 @@ namespace RemoveTheAnnoying.Patches
 
         private static void TeleportSequence(StartOfRound __instance)
         {
+            if (!IsMagnetProper(__instance)) return;
             VehicleController cruiser = __instance.attachedVehicle;
             PlayerControllerB playerA = cruiser.currentDriver;
             bool successA = TeleportPlayerToTerminal(playerA);
