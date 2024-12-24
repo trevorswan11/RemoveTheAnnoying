@@ -10,6 +10,7 @@ using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
 using UnityEngine;
+using static RemoveTheAnnoying.Patches.DisableBadEnemySpawningPatch;
 
 namespace RemoveTheAnnoying
 {
@@ -18,7 +19,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.3.3";
+        private const string modVersion = "1.3.4";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -31,6 +32,7 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
         public ConfigEntry<bool> IncreasedArtificeScrap { get; private set; }
         public ConfigEntry<bool> AttemptForceManor { get; private set; }
+        public ConfigEntry<bool> IndoorFogDisabled { get; private set; }
 
         void Awake()
         {
@@ -45,6 +47,7 @@ namespace RemoveTheAnnoying
             MineshaftDisabled = Config.Bind<bool>("Interior Generation", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("Interior Generation", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
             AttemptForceManor = Config.Bind<bool>("Interior Generation", "AttemptForceManor", false, "Attempts to force manor generation on all moons, when possible. Overrides all other interior config settings");
+            IndoorFogDisabled = Config.Bind<bool>("Interior Generation", "IndoorFogDisabled", false, "Sets infoor volumetric fog's active status to false when enabled.");
 
             BarberDisabled = Config.Bind<bool>("Enemies", "DisableBarber", true, "Disables all barber spawning when enabled.");
             ManeaterDisabled = Config.Bind<bool>("Enemies", "DisableManeater", true, "Disables all maneater spawning when enabled.");
@@ -53,7 +56,7 @@ namespace RemoveTheAnnoying
 
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             mls.LogInfo("Patching some QoL files!");
-            
+
             // Base Patch
             harmony.PatchAll(typeof(RemoveAnnoyingBase));
 
@@ -76,6 +79,7 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
+            mls.LogDebug($"Config IndoorFogDisabled = {IndoorFogDisabled.Value}");
         }
     }
 }
@@ -127,6 +131,7 @@ namespace RemoveTheAnnoying.Patches
         private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
         private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
         private static readonly bool ManorForced = RemoveAnnoyingBase.Instance.AttemptForceManor.Value;
+        private static readonly bool FogDisabled = RemoveAnnoyingBase.Instance.IndoorFogDisabled.Value;
 
         private const int MaxSeedAttempts = 1000;
         private const int MaxSeedValue = 100_000_000;
@@ -199,6 +204,8 @@ namespace RemoveTheAnnoying.Patches
                     RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                 }
             }
+
+            if (FogDisabled) manager.indoorFog.gameObject.SetActive(false);
         }
 
         private static bool RemoveInteriorGeneration(InteriorType? currentType, 
@@ -219,7 +226,7 @@ namespace RemoveTheAnnoying.Patches
             int?[] dissallowed = dissallowedTypes.Select(dt => (int?)dt.Value).ToArray();
             string[] names = dissallowedTypes.Select(dt => interiorMap[(int)dt.Value]).ToArray();
             IEnumerable<string> zipped = names.Zip(dissallowed, (name, typeVal) => $"{name}: {typeVal}");
-            Logger.LogDebug($"Current: {currentType}; Dissallowed: {string.Join(", ", zipped)}");
+            Logger.LogDebug($"Current: {currentType}; Disallowed: {string.Join(", ", zipped)}");
 
             // Log the types that are dissallowed
             Logger.LogInfo($"{string.Join(" or ", names)} seed identified, trying to regenerate...");
@@ -338,20 +345,38 @@ namespace RemoveTheAnnoying.Patches
 
         private static void Prefix(SelectableLevel newLevel)
         {
+            try { LevelOperation(newLevel, false); }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"Prefix disabling ran incorrectly: {ex}");
+            }
+        }
+
+        private static void Postfix(SelectableLevel newLevel)
+        {
+            try { LevelOperation(newLevel, true); }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"Postfix disabling ran incorrectly: {ex}");
+            }
+        }
+
+        private static void LevelOperation(SelectableLevel newLevel, bool log)
+        {
             // Check for company
             if (SelectableLevelIsCompany(newLevel)) return;
 
             // Check if the user is ok with both enemies
             if (!BarberDisabled && !ManeaterDisabled)
             {
-                Logger.LogInfo("All unfun enemies allowed by user config.");
+                if (log) Logger.LogInfo("All unfun enemies allowed by user config.");
                 return;
             }
 
             // Check if the level contains any of the disabled enemies
             if (!newLevel.Enemies.Any(e => DisabledEnemies.Contains(e.enemyType.name)))
             {
-                Logger.LogInfo("No unfun enemies detected in spawning pool.");
+                if (log) Logger.LogInfo("No unfun enemies detected in spawning pool.");
                 return;
             }
 
@@ -359,13 +384,13 @@ namespace RemoveTheAnnoying.Patches
             int disabledCount = 0;
             foreach (SpawnableEnemyWithRarity e in newLevel.Enemies)
             {
-                if (DisableEnemyIfStinky(e)) disabledCount++;
+                if (DisableEnemyIfStinky(e, log)) disabledCount++;
             }
-            Logger.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
-            Logger.LogDebug("Level will not spawn any unfun enemies.");
+            if (log) Logger.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
+            if (log) Logger.LogDebug("Level will not spawn any unfun enemies.");
         }
 
-        private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy)
+        private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy, bool log)
         {
             string enemyName = enemy.enemyType.name;
             if (DisabledEnemies.Contains(enemyName))
@@ -373,19 +398,20 @@ namespace RemoveTheAnnoying.Patches
                 // Check to see if the user is ok with the barber
                 if (enemyName.Equals("ClaySurgeon") && !BarberDisabled)
                 {
-                    Logger.LogInfo("Barber allowed due to user config.");
+                    if (log) Logger.LogInfo("Barber allowed due to user config.");
                     return false;
                 }
 
                 // Check to see if the user is ok with the maneater
                 if (enemyName.Equals("CaveDweller") && !ManeaterDisabled)
                 {
-                    Logger.LogInfo("Maneater allowed due to user config");
+                    if (log) Logger.LogInfo("Maneater allowed due to user config");
                     return false;
                 }
 
                 enemy.rarity = 0;
-                Logger.LogInfo($"Spawning of {enemyName} disabled.");
+                enemy.enemyType.spawningDisabled = true;
+                if (log) Logger.LogInfo($"Spawning of {enemyName} disabled.");
                 return true;
             }
             return false;
@@ -440,7 +466,7 @@ namespace RemoveTheAnnoying.Patches
             else Logger.LogInfo("Could not teleport any players.");
 
             // Debug message at the end
-            Logger.LogDebug("Teleport seqeunce exited without any errors :)");
+            Logger.LogDebug("Teleport sequence exited without any errors :)");
         }
 
         private static bool IsShipLeaving(StartOfRound startOfRound)

@@ -20,7 +20,6 @@ D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\Unity.InputSystem.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\Unity.TextMeshPro.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\Facepunch.Steamworks.Win64.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\UnityEngine.VFXModule.dll
-D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\Unity.RenderPipelines.HighDefinition.Runtime.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\UnityEngine.TerrainModule.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\Unity.RenderPipelines.Core.Runtime.dll
 D:\Modding\RemoveTheAnnoying\RemoveTheAnnoying\bin\Debug\UnityEngine.UIModule.dll
