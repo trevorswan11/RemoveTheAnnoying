@@ -2,7 +2,7 @@
 
     - Fixed some spelling errors in the logging statements
     - Added a postfix method to enemy disabling so that hoarding bug infestations do not override the mod's functionality
-    - Added a config option to try and disable indoor fog, work in progress and may not work
+    - Fixed an issue where players could be teleported into cruiser from anywhere on the map as long as the magnet was on and they were the driver
 
 - **1.3.3**
 

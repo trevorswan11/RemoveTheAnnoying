@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,8 +8,6 @@ using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
-using UnityEngine;
-using static RemoveTheAnnoying.Patches.DisableBadEnemySpawningPatch;
 
 namespace RemoveTheAnnoying
 {
@@ -32,7 +29,6 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
         public ConfigEntry<bool> IncreasedArtificeScrap { get; private set; }
         public ConfigEntry<bool> AttemptForceManor { get; private set; }
-        public ConfigEntry<bool> IndoorFogDisabled { get; private set; }
 
         void Awake()
         {
@@ -47,7 +43,6 @@ namespace RemoveTheAnnoying
             MineshaftDisabled = Config.Bind<bool>("Interior Generation", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("Interior Generation", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
             AttemptForceManor = Config.Bind<bool>("Interior Generation", "AttemptForceManor", false, "Attempts to force manor generation on all moons, when possible. Overrides all other interior config settings");
-            IndoorFogDisabled = Config.Bind<bool>("Interior Generation", "IndoorFogDisabled", false, "Sets infoor volumetric fog's active status to false when enabled.");
 
             BarberDisabled = Config.Bind<bool>("Enemies", "DisableBarber", true, "Disables all barber spawning when enabled.");
             ManeaterDisabled = Config.Bind<bool>("Enemies", "DisableManeater", true, "Disables all maneater spawning when enabled.");
@@ -79,7 +74,6 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
-            mls.LogDebug($"Config IndoorFogDisabled = {IndoorFogDisabled.Value}");
         }
     }
 }
@@ -131,7 +125,6 @@ namespace RemoveTheAnnoying.Patches
         private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
         private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
         private static readonly bool ManorForced = RemoveAnnoyingBase.Instance.AttemptForceManor.Value;
-        private static readonly bool FogDisabled = RemoveAnnoyingBase.Instance.IndoorFogDisabled.Value;
 
         private const int MaxSeedAttempts = 1000;
         private const int MaxSeedValue = 100_000_000;
@@ -204,8 +197,6 @@ namespace RemoveTheAnnoying.Patches
                     RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                 }
             }
-
-            if (FogDisabled) manager.indoorFog.gameObject.SetActive(false);
         }
 
         private static bool RemoveInteriorGeneration(InteriorType? currentType, 
@@ -387,7 +378,7 @@ namespace RemoveTheAnnoying.Patches
                 if (DisableEnemyIfStinky(e, log)) disabledCount++;
             }
             if (log) Logger.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
-            if (log) Logger.LogDebug("Level will not spawn any unfun enemies.");
+            if (log && disabledCount > 0) Logger.LogDebug("Level will not spawn any unfun enemies.");
         }
 
         private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy, bool log)
@@ -429,7 +420,7 @@ namespace RemoveTheAnnoying.Patches
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly bool CruiserTeleportEnabled = RemoveAnnoyingBase.Instance.CruiserTeleportFix.Value;
-        private static readonly float TeleportDelay = 3.642f;
+        private static readonly float TeleportDelay = 3.942f;
 
         private async static void Postfix(StartOfRound __instance)
         {
@@ -453,8 +444,8 @@ namespace RemoveTheAnnoying.Patches
 
         private static void TeleportSequence(StartOfRound __instance)
         {
-            if (!IsMagnetProper(__instance)) return;
             VehicleController cruiser = __instance.attachedVehicle;
+            if (!IsMagnetProper(__instance, cruiser)) return;
             PlayerControllerB playerA = cruiser.currentDriver;
             bool successA = TeleportPlayerToTerminal(playerA);
             PlayerControllerB playerB = cruiser.currentPassenger;
@@ -474,9 +465,11 @@ namespace RemoveTheAnnoying.Patches
             return startOfRound.shipIsLeaving || startOfRound.shipLeftAutomatically;
         }
 
-        private static bool IsMagnetProper(StartOfRound startOfRound)
+        private static bool IsMagnetProper(StartOfRound startOfRound, VehicleController vehicleController)
         {
-            return startOfRound.magnetOn || startOfRound.isObjectAttachedToMagnet;
+            bool result = startOfRound.magnetOn && (startOfRound.isObjectAttachedToMagnet || vehicleController.magnetedToShip);
+            if (!result) Logger.LogInfo("Teleport sequence exited due to cruiser not being connected to the ship's magnet.");
+            return result;
         }
 
         private static bool TeleportPlayerToTerminal(PlayerControllerB player)
