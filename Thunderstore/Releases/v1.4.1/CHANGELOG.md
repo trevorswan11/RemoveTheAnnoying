@@ -1,3 +1,8 @@
+- **1.4.1**
+
+    - Minor project wide spelling changes
+
+
 - **1.4.0**
 
     - Added another way to handle the cruiser fix, where the players 'on ship' data is updated instead of having the player teleported. Inspired by digger1213's [Cruiser Improved](https://github.com/digger1213/CruiserImproved/) mod.
