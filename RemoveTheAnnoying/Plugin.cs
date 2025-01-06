@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using BepInEx;
@@ -8,6 +9,7 @@ using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;
 using RemoveTheAnnoying.Patches;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace RemoveTheAnnoying
 {
@@ -16,7 +18,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.3.4";
+        private const string modVersion = "1.4.0";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -26,54 +28,96 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> BarberDisabled { get; private set; }
         public ConfigEntry<bool> ManeaterDisabled { get; private set; }
         public ConfigEntry<bool> AllowFactoryArtifice { get; private set; }
-        public ConfigEntry<bool> CruiserTeleportFix { get; private set; }
+        public ConfigEntry<bool> CruiserFix { get; private set; }
         public ConfigEntry<bool> IncreasedArtificeScrap { get; private set; }
         public ConfigEntry<bool> AttemptForceManor { get; private set; }
+        public ConfigEntry<bool> RemoveInteriorFog { get; private set; }
+        public ConfigEntry<string> ForceWeather { get; private set; }
 
         void Awake()
         {
             // Singleton who
-            if (Instance == null)
-            {
-                Instance = this;
-            }
+            if (Instance == null) Instance = this;
+            
+            mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
+            mls.LogInfo("Patching some QoL files!");
 
-            CruiserTeleportFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Teleports players in the cruiser's driver or passenger seat into ship if magnetted and the ship is leaving.");
+            // Config
+            BindConfig();
+            ParseWeather(ForceWeather);
+            PatchAll();            
+
+            mls.LogInfo("The game is now more playable!");
+            ConfigStatus();
+        }
+
+        void PatchAll()
+        {
+            // Base Patch
+            harmony.PatchAll(typeof(RemoveAnnoyingBase));
+
+            // All other patches
+            harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
+            harmony.PatchAll(typeof(CruiserFailsafe));
+
+            harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
+
+            harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
+            harmony.PatchAll(typeof(RemoveFogPatch));
+
+            harmony.PatchAll(typeof(ArtificeScrapPatch));
+
+            harmony.PatchAll(typeof(ForceWeatherPatch));
+        }
+        void BindConfig()
+        {
+            CruiserFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Allows players in a cruiser connected to the ship's magnet to be counted as in the ship when the ship takes off.");
 
             MineshaftDisabled = Config.Bind<bool>("Interior Generation", "DisableMineshaft", true, "Disables mineshaft interior when enabled.");
             AllowFactoryArtifice = Config.Bind<bool>("Interior Generation", "AllowArtificeFactory", true, "Allows factory interior on Artifice when enabled.");
             AttemptForceManor = Config.Bind<bool>("Interior Generation", "AttemptForceManor", false, "Attempts to force manor generation on all moons, when possible. Overrides all other interior config settings");
+            RemoveInteriorFog = Config.Bind<bool>("Interior Generation", "RemoveInteriorFog", true, "Prevents the generation of interior fog introduced in v67.");
 
             BarberDisabled = Config.Bind<bool>("Enemies", "DisableBarber", true, "Disables all barber spawning when enabled.");
             ManeaterDisabled = Config.Bind<bool>("Enemies", "DisableManeater", true, "Disables all maneater spawning when enabled.");
 
             IncreasedArtificeScrap = Config.Bind<bool>("High Quota", "IncreasedArtificeScrap", false, "Sets the minimum scrap of Artifice to 31 and the maximum to 37. These are the values from v56.");
 
-            mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
-            mls.LogInfo("Patching some QoL files!");
-
-            // Base Patch
-            harmony.PatchAll(typeof(RemoveAnnoyingBase));
-
-            // All other patches
-            harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
-            harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
-            harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
-            harmony.PatchAll(typeof(ArtificeScrapPatch));
-
-            mls.LogInfo("The game is now more playable!");
-            ConfigStatus();
+            ForceWeather = Config.Bind<string>("Training", "ForceWeather", "disabled", "Forces all moon's weathers to be the specified type, defaulting to 'disabled' if input is invalid. Case-insensitive choices are: None, Rainy, Stormy, Foggy, Flooded, Eclipsed, and disabled");
         }
 
         void ConfigStatus()
         {
-            mls.LogDebug($"Config CruiserTeleportFix = {CruiserTeleportFix.Value}");
+            mls.LogDebug($"Config CruiserTeleportFix = {CruiserFix.Value}");
             mls.LogDebug($"Config DisableMineshaft = {MineshaftDisabled.Value}");
             mls.LogDebug($"Config AllowArtificeFactory = {AllowFactoryArtifice.Value}");
             mls.LogDebug($"Config AttemptForceManor = {AttemptForceManor.Value}");
+            mls.LogDebug($"Config RemoveInteriorFog = {RemoveInteriorFog.Value}");
             mls.LogDebug($"Config DisableBarber = {BarberDisabled.Value}");
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
+            mls.LogDebug($"Config ForceWeather = {ForceWeather.Value}");
+        }
+
+        void ParseWeather(ConfigEntry<string> entry)
+        {
+            string value = entry.Value.ToLower();
+            switch (value)
+            {
+                case "disabled":
+                case "none":
+                case "rainy":
+                case "stormy":
+                case "foggy":
+                case "flooded":
+                case "eclipsed":
+                    entry.Value = value;
+                    break;
+                default:
+                    mls.LogDebug("Could not parse forced weather.");
+                    entry.Value = "disabled";
+                    break;
+            }
         }
     }
 }
@@ -419,8 +463,8 @@ namespace RemoveTheAnnoying.Patches
     public class CruiserSeatTeleportPatch
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-        private static readonly bool CruiserTeleportEnabled = RemoveAnnoyingBase.Instance.CruiserTeleportFix.Value;
-        private static readonly float TeleportDelay = 3.942f;
+        private static readonly bool CruiserFixEnabled = RemoveAnnoyingBase.Instance.CruiserFix.Value;
+        private static readonly float TeleportDelay = 4.642f;
 
         private async static void Postfix(StartOfRound __instance)
         {
@@ -428,7 +472,7 @@ namespace RemoveTheAnnoying.Patches
             if (!IsShipLeaving(__instance)) return;
 
             // Check the current config option
-            if (!CruiserTeleportEnabled)
+            if (!CruiserFixEnabled)
             {
                 Logger.LogInfo("Cruiser fix diabled by user, I won't proceed.");
                 return;
@@ -447,16 +491,9 @@ namespace RemoveTheAnnoying.Patches
             VehicleController cruiser = __instance.attachedVehicle;
             if (!IsMagnetProper(__instance, cruiser)) return;
             PlayerControllerB playerA = cruiser.currentDriver;
-            bool successA = TeleportPlayerToTerminal(playerA);
+            TeleportPlayerToTerminal(playerA);
             PlayerControllerB playerB = cruiser.currentPassenger;
-            bool successB = TeleportPlayerToTerminal(playerB);
-
-            // Report the result of the teleport
-            if (successA && successB) Logger.LogInfo("Successfully teleported both players.");
-            else if (successA ^ successB) Logger.LogInfo("Successfully teleported one player.");
-            else Logger.LogInfo("Could not teleport any players.");
-
-            // Debug message at the end
+            TeleportPlayerToTerminal(playerB);
             Logger.LogDebug("Teleport sequence exited without any errors :)");
         }
 
@@ -480,6 +517,21 @@ namespace RemoveTheAnnoying.Patches
             Logger.LogInfo($"Successfully teleported {player.playerUsername} to Ship.");
             player.isInHangarShipRoom = true;
             return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(ElevatorAnimationEvents), "ElevatorFullyRunning")]
+    public class CruiserFailsafe
+    {
+        private static readonly bool CruiserFixEnabled = RemoveAnnoyingBase.Instance.CruiserFix.Value;
+
+        private static void Prefix()
+        {
+            if (!CruiserFixEnabled) return;
+            PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+            if (player.physicsParent == null) return;
+            VehicleController vehicle = player.physicsParent.GetComponentInParent<VehicleController>();
+            if (vehicle && vehicle.magnetedToShip) player.isInElevator = true; return;
         }
     }
 
@@ -513,6 +565,81 @@ namespace RemoveTheAnnoying.Patches
             }
             Logger.LogInfo("Current moon is not Artifice.");
             return;
+        }
+    }
+
+    [HarmonyPatch(typeof(RoundManager), "RefreshEnemiesList")]
+    [HarmonyPriority(Priority.Last)]
+    public class RemoveFogPatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly bool RemoveFogEnabled = RemoveAnnoyingBase.Instance.RemoveInteriorFog.Value;
+
+        private static void Postfix()
+        {
+            if (!RemoveFogEnabled)
+            {
+                Logger.LogInfo("Remove fog diabled by user, I won't proceed.");
+                return;
+            }
+
+            if (RoundManager.Instance == null) return;
+            if (RoundManager.Instance.indoorFog == null) return;
+            LocalVolumetricFog localFog = RoundManager.Instance.indoorFog;
+            bool result = DisableFog(localFog);
+
+            if (result) Logger.LogInfo("Fog successfully disabled in current level.");
+            else Logger.LogInfo("Fog was not detected in the current level or disabling was unsuccessful.");
+        }
+
+        private static bool DisableFog(LocalVolumetricFog localFog)
+        {
+            if (localFog == null) return false;
+            localFog.gameObject.SetActive(false);
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(StartOfRound), "SetPlanetsWeather")]
+    public class ForceWeatherPatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly string ForceWeather = RemoveAnnoyingBase.Instance.ForceWeather.Value;
+
+        private static bool Prefix(SelectableLevel[] ___levels)
+        {
+            if (ForceWeather == null || ForceWeather.Equals("disabled"))
+            {
+                Logger.LogInfo("ForceWeather input was not identified.");
+                return true;
+            }
+            LevelWeatherType type;
+            switch (ForceWeather.ToLower()) 
+            {
+                case "none":
+                    type = LevelWeatherType.None; break;
+                case "rainy":
+                    type = LevelWeatherType.Rainy; break;
+                case "stormy":
+                    type = LevelWeatherType.Stormy; break;
+                case "foggy":
+                    type = LevelWeatherType.Foggy; break;
+                case "flooded":
+                    type = LevelWeatherType.Flooded; break;
+                case "eclipsed":
+                    type = LevelWeatherType.Eclipsed; break;
+                default:
+                    Logger.LogInfo("ForceWeather input was not identified.");
+                    return true;
+            }
+
+            foreach (SelectableLevel level in ___levels)
+            {
+                Logger.LogInfo($"Setting {level.name.Replace("Level", "")}'s weather to {ForceWeather}.");
+                level.currentWeather = type;
+            }
+            Logger.LogInfo($"All level's weather set to {ForceWeather}.");
+            return false;
         }
     }
 }
