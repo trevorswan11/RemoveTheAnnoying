@@ -1,6 +1,9 @@
 - **1.4.1**
 
     - Minor project wide spelling changes
+    - Created a new config section called 'Relaxed' which features two new patches
+        - **StartingCreditsPatch:** Sets the starting credit value to a high enough amount to buy some flashlights, walkies, weed killer, a cruiser, and to go to art
+        - **EclipsedScrapValuePatch:** A floating point value that allows you to increase the scrap spawn amount on eclipsed days. This is limited by a range of (0, 2], meaning it cannot be 0, and cannot exceed 2.
 
 
 - **1.4.0**

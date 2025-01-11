@@ -18,7 +18,7 @@ namespace RemoveTheAnnoying
     {
         private const string modGUID = "Kyoshi.RemoveAnnoyingStuff";
         private const string modName = "Remove Annoying Mechanics";
-        private const string modVersion = "1.4.0";
+        private const string modVersion = "1.4.1";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         public static RemoveAnnoyingBase Instance;
@@ -33,6 +33,8 @@ namespace RemoveTheAnnoying
         public ConfigEntry<bool> AttemptForceManor { get; private set; }
         public ConfigEntry<bool> RemoveInteriorFog { get; private set; }
         public ConfigEntry<string> ForceWeather { get; private set; }
+        public ConfigEntry<float> EclipsedMultiplier { get; private set; }
+        public ConfigEntry<bool> IncreasedStartingCredits { get; private set; }
 
         void Awake()
         {
@@ -59,16 +61,15 @@ namespace RemoveTheAnnoying
             // All other patches
             harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
             harmony.PatchAll(typeof(CruiserFailsafe));
-
             harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
-
             harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
             harmony.PatchAll(typeof(RemoveFogPatch));
-
             harmony.PatchAll(typeof(ArtificeScrapPatch));
-
             harmony.PatchAll(typeof(ForceWeatherPatch));
+            harmony.PatchAll(typeof(StartingCreditsPatch));
+            harmony.PatchAll(typeof(EclipsedScrapValuePatch));
         }
+
         void BindConfig()
         {
             CruiserFix = Config.Bind<bool>("General", "CruiserTeleportFix", true, "Allows players in a cruiser connected to the ship's magnet to be counted as in the ship when the ship takes off.");
@@ -84,6 +85,9 @@ namespace RemoveTheAnnoying
             IncreasedArtificeScrap = Config.Bind<bool>("High Quota", "IncreasedArtificeScrap", false, "Sets the minimum scrap of Artifice to 31 and the maximum to 37. These are the values from v56.");
 
             ForceWeather = Config.Bind<string>("Training", "ForceWeather", "disabled", "Forces all moon's weathers to be the specified type, defaulting to 'disabled' if input is invalid. Case-insensitive choices are: None, Rainy, Stormy, Foggy, Flooded, Eclipsed, and disabled");
+
+            IncreasedStartingCredits = Config.Bind<bool>("Relaxed", "IncreasedStartingCredits", false, "Increases the starting credits enough to buy cruiser, 5 pro flashlights, 5 walkies, 2 shovels, 2 weed killer, and to go to Artifice (assuming no sales).");
+            EclipsedMultiplier = Config.Bind<float>("Relaxed", "EclipsedMultiplier", 1.0f, "Alters the global scrap value multiplier for eclipsed moons. The valid input range is (0-2]. A little goes a long way...");
         }
 
         void ConfigStatus()
@@ -97,6 +101,8 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableManeater = {ManeaterDisabled.Value}");
             mls.LogDebug($"Config IncreasedArtificeScrap = {IncreasedArtificeScrap.Value}");
             mls.LogDebug($"Config ForceWeather = {ForceWeather.Value}");
+            mls.LogDebug($"Config IncreasedStartingCredits = {IncreasedStartingCredits.Value}");
+            mls.LogDebug($"Config EclipsedMultiplier = {EclipsedMultiplier.Value}");
         }
 
         void ParseWeather(ConfigEntry<string> entry)
@@ -243,27 +249,27 @@ namespace RemoveTheAnnoying.Patches
             }
         }
 
-        private static bool RemoveInteriorGeneration(InteriorType? currentType, 
-            InteriorType?[] dissallowedTypes, RoundManager manager, StartOfRound __instance)
+        private static bool RemoveInteriorGeneration(InteriorType? currentType,
+            InteriorType?[] disallowedTypes, RoundManager manager, StartOfRound __instance)
         {
             // Return if types are not provided, or if every interior is requested to be removed
-            if (dissallowedTypes.Length == 0 || dissallowedTypes.Length == 3) return false;
-            if(dissallowedTypes == null || dissallowedTypes.Contains(null)) return false;
-            
+            if (disallowedTypes.Length == 0 || disallowedTypes.Length == 3) return false;
+            if (disallowedTypes == null || disallowedTypes.Contains(null)) return false;
+
             // Determine what the user wants to play
-            if (!dissallowedTypes.Contains(currentType))
+            if (!disallowedTypes.Contains(currentType))
             {
                 Logger.LogInfo("No need to regenerate seed.");
                 return false;
             }
 
-            // Get the names of the dissallowed types
-            int?[] dissallowed = dissallowedTypes.Select(dt => (int?)dt.Value).ToArray();
-            string[] names = dissallowedTypes.Select(dt => interiorMap[(int)dt.Value]).ToArray();
-            IEnumerable<string> zipped = names.Zip(dissallowed, (name, typeVal) => $"{name}: {typeVal}");
+            // Get the names of the disallowed types
+            int?[] disallowed = disallowedTypes.Select(dt => (int?)dt.Value).ToArray();
+            string[] names = disallowedTypes.Select(dt => interiorMap[(int)dt.Value]).ToArray();
+            IEnumerable<string> zipped = names.Zip(disallowed, (name, typeVal) => $"{name}: {typeVal}");
             Logger.LogDebug($"Current: {currentType}; Disallowed: {string.Join(", ", zipped)}");
 
-            // Log the types that are dissallowed
+            // Log the types that are disallowed
             Logger.LogInfo($"{string.Join(" or ", names)} seed identified, trying to regenerate...");
             manager.hasInitializedLevelRandomSeed = false;
             manager.InitializeRandomNumberGenerators();
@@ -283,7 +289,7 @@ namespace RemoveTheAnnoying.Patches
                 }
 
                 // Check for mineshaft or factory generation
-                if (!dissallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault()))
+                if (!disallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault()))
                 {
                     __instance.randomMapSeed = randomSeed;
                     Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
@@ -373,7 +379,7 @@ namespace RemoveTheAnnoying.Patches
     public class DisableBadEnemySpawningPatch
     {
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-        private static readonly HashSet<string> DisabledEnemies 
+        private static readonly HashSet<string> DisabledEnemies
             = new HashSet<string> { "ClaySurgeon", "CaveDweller" };
         private static readonly bool BarberDisabled = RemoveAnnoyingBase.Instance.BarberDisabled.Value;
         private static readonly bool ManeaterDisabled = RemoveAnnoyingBase.Instance.ManeaterDisabled.Value;
@@ -468,7 +474,7 @@ namespace RemoveTheAnnoying.Patches
 
         private async static void Postfix(StartOfRound __instance)
         {
-            // Check to see if the ship is leaving or Magent is not on
+            // Check to see if the ship is leaving or Magnet is not on
             if (!IsShipLeaving(__instance)) return;
 
             // Check the current config option
@@ -529,9 +535,13 @@ namespace RemoveTheAnnoying.Patches
         {
             if (!CruiserFixEnabled) return;
             PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
-            if (player.physicsParent == null) return;
-            VehicleController vehicle = player.physicsParent.GetComponentInParent<VehicleController>();
-            if (vehicle && vehicle.magnetedToShip) player.isInElevator = true; return;
+
+            for (int i = 0; i < 100; i++)
+            {
+                if (player.physicsParent == null) continue;
+                VehicleController vehicle = player.physicsParent.GetComponentInParent<VehicleController>();
+                if (vehicle && vehicle.magnetedToShip) player.isInElevator = true;
+            }
         }
     }
 
@@ -553,7 +563,7 @@ namespace RemoveTheAnnoying.Patches
                 return;
             }
 
-            // Check if the player is actualy on art
+            // Check if the player is actually on art
             string levelName = ___currentLevel.name.Replace("Level", "");
             if (levelName.Equals("Artifice"))
             {
@@ -614,7 +624,7 @@ namespace RemoveTheAnnoying.Patches
                 return true;
             }
             LevelWeatherType type;
-            switch (ForceWeather.ToLower()) 
+            switch (ForceWeather.ToLower())
             {
                 case "none":
                     type = LevelWeatherType.None; break;
@@ -640,6 +650,64 @@ namespace RemoveTheAnnoying.Patches
             }
             Logger.LogInfo($"All level's weather set to {ForceWeather}.");
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(TimeOfDay), "Awake")]
+    public class StartingCreditsPatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly bool IncreaseEnabled = RemoveAnnoyingBase.Instance.IncreasedStartingCredits.Value;
+        private static readonly int IncreasedAmount = CalculateDesired();
+
+        private static void Postfix(TimeOfDay __instance)
+        {
+            if (!IncreaseEnabled)
+            {
+                Logger.LogInfo("Increased starting credits diabled by user, I won't proceed.");
+                return;
+            }
+
+            __instance.quotaVariables.startingCredits = IncreasedAmount;
+            Logger.LogInfo($"I set the starting credits to {IncreasedAmount} successfully.");
+        }
+
+        private static int CalculateDesired()
+        {
+            int CruiserPrice = 400;
+            int ArtificePrice = 1500;
+            int WeedKillerPrice = 25;
+            int FlashlightPrice = 25;
+            int WalkiePrice = 12;
+            int ShovelPrice = 30;
+
+            return (
+                CruiserPrice +
+                ArtificePrice +
+                2 * WeedKillerPrice +
+                5 * FlashlightPrice +
+                5 * WalkiePrice +
+                2 * ShovelPrice
+            );
+        }
+    }
+
+    [HarmonyPatch(typeof(RoundManager), "SpawnScrapInLevel")]
+    public class EclipsedScrapValuePatch
+    {
+        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
+        private static readonly float Multiplier = RemoveAnnoyingBase.Instance.EclipsedMultiplier.Value;
+
+        public static void Prefix(RoundManager __instance)
+        {
+            if (Multiplier <= 0 ||  Multiplier > 2 || Multiplier == 1)
+            {
+                Logger.LogInfo($"Given multiplier was {Multiplier}, I won't proceed.");
+                return;
+            }
+
+            if ((int)TimeOfDay.Instance.currentLevelWeather == 5) typeof(RoundManager).GetField("scrapValueMultiplier").SetValue(__instance, Multiplier);
+            Logger.LogInfo($"I set the spawned scrap multiplier to {Multiplier} successfully.");
         }
     }
 }
