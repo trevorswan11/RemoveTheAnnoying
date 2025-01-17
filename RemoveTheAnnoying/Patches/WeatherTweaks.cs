@@ -31,7 +31,7 @@ namespace RemoveTheAnnoying.Patches
         private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
         private static readonly string ForceWeather = RemoveAnnoyingBase.Instance.ForceWeather.Value;
         private static readonly string DisableWeather = RemoveAnnoyingBase.Instance.DisableWeather.Value;
-        private static readonly Dictionary<string, LevelWeatherType[]> MoonWeathers;
+        private static readonly Dictionary<string, LevelWeatherType[]> MoonWeathers = new Dictionary<string, LevelWeatherType[]>();
         private static readonly LevelWeatherType[] AllWeathers = new LevelWeatherType[]
             {
                 LevelWeatherType.None,
@@ -45,6 +45,8 @@ namespace RemoveTheAnnoying.Patches
 
         private static bool Prefix(SelectableLevel[] ___levels)
         {
+            Logger.LogInfo("Performing weather tweaks");
+            // If ForceWeather has some valid value, and is not disabled
             if (ForceWeather != null && !(ForceWeather.Equals("disabled")))
             {
                 // Parse force weather type and force all planets
@@ -109,6 +111,7 @@ namespace RemoveTheAnnoying.Patches
             foreach (SelectableLevel level in levels)
             {
                 string levelName = level.name.Replace("Level", "");
+                if (levelName.Equals("CompanyBuilding")) continue;
                 try
                 {
                     HashSet<LevelWeatherType> alloweableWeathers = new HashSet<LevelWeatherType>(MoonWeathers[levelName]);
@@ -121,7 +124,7 @@ namespace RemoveTheAnnoying.Patches
                         }
                         else break;
                     }
-                    Logger.LogInfo($"Finished rerolling level {levelName}: final type {level.currentWeather}.");
+                    Logger.LogInfo($"Finished rerolling level {levelName}: Final type = {level.currentWeather}.");
                 }
 
                 catch { Logger.LogDebug($"Error altering weather of type {restrictedType} on {levelName}."); }

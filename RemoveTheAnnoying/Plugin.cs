@@ -41,27 +41,20 @@ namespace RemoveTheAnnoying
             // Config
             BindConfig();
             ParseWeather(ForceWeather, DisableWeather);
-            PatchAll();            
+            Patch(
+                typeof(CruiserSeatTeleportPatch),
+                typeof(CruiserFailsafePatch),
+                typeof(ChooseNewRandomMapSeedPatch),
+                typeof(DisableBadEnemySpawningPatch),
+                typeof(RemoveFogPatch),
+                typeof(ArtificeScrapPatch),
+                typeof(WeatherPatch),
+                typeof(StartingCreditsPatch),
+                typeof(EclipsedScrapValuePatch)
+            );
 
             mls.LogInfo("The game is now more playable!");
             ConfigStatus();
-        }
-
-        void PatchAll()
-        {
-            // Base Patch
-            harmony.PatchAll(typeof(RemoveAnnoyingBase));
-
-            // All other patches
-            harmony.PatchAll(typeof(CruiserSeatTeleportPatch));
-            harmony.PatchAll(typeof(CruiserFailsafePatch));
-            harmony.PatchAll(typeof(ChooseNewRandomMapSeedPatch));
-            harmony.PatchAll(typeof(DisableBadEnemySpawningPatch));
-            harmony.PatchAll(typeof(RemoveFogPatch));
-            harmony.PatchAll(typeof(ArtificeScrapPatch));
-            harmony.PatchAll(typeof(WeatherPatch));
-            harmony.PatchAll(typeof(StartingCreditsPatch));
-            harmony.PatchAll(typeof(EclipsedScrapValuePatch));
         }
 
         void BindConfig()
@@ -99,6 +92,12 @@ namespace RemoveTheAnnoying
             mls.LogDebug($"Config DisableWeather = {DisableWeather.Value}");
             mls.LogDebug($"Config IncreasedStartingCredits = {IncreasedStartingCredits.Value}");
             mls.LogDebug($"Config EclipsedMultiplier = {EclipsedMultiplier.Value}");
+        }
+
+        void Patch(params System.Type[] patchNames)
+        {
+            harmony.PatchAll(typeof(RemoveAnnoyingBase));
+            foreach (System.Type patchName in patchNames) harmony.PatchAll(patchName);
         }
 
         void ParseWeather(params ConfigEntry<string>[] entries)
