@@ -58,6 +58,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Patches\ArtificeScrapIncrease.cs" />
+    <Compile Include="Patches\CruiserFixes.cs" />
+    <Compile Include="Patches\DisableBadEnemies.cs" />
+    <Compile Include="Patches\RemoveInteriorFog.cs" />
+    <Compile Include="Patches\RerollMapSeed.cs" />
+    <Compile Include="Patches\StartingCreditsIncrease.cs" />
+    <Compile Include="Patches\WeatherTweaks.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
