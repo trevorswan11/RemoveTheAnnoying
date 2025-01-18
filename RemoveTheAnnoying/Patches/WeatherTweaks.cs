@@ -114,6 +114,7 @@ namespace RemoveTheAnnoying.Patches
                 if (levelName.Equals("CompanyBuilding")) continue;
                 try
                 {
+                    bool altered = false;
                     HashSet<LevelWeatherType> alloweableWeathers = new HashSet<LevelWeatherType>(MoonWeathers[levelName]);
                     for (int i = 0; i < MaximumRerollAttempts; i++)
                     {
@@ -121,10 +122,12 @@ namespace RemoveTheAnnoying.Patches
                         {
                             level.currentWeather = alloweableWeathers.ElementAt(new Random().Next(alloweableWeathers.Count));
                             Logger.LogDebug($"Rerolled level {levelName} to type {level.currentWeather}.");
+                            altered = true;
                         }
                         else break;
                     }
-                    Logger.LogInfo($"Finished rerolling level {levelName}: Final type = {level.currentWeather}.");
+                    if (altered) Logger.LogInfo($"Finished rerolling level {levelName}: Final type = {level.currentWeather}.");
+                    else Logger.LogInfo($"Level {levelName}'s weather was not restricted so no action was taken.");
                 }
 
                 catch { Logger.LogDebug($"Error altering weather of type {restrictedType} on {levelName}."); }
