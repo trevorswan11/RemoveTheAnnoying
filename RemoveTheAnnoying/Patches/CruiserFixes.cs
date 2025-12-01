@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using BepInEx.Logging;
 using GameNetcodeStuff;
 using HarmonyLib;

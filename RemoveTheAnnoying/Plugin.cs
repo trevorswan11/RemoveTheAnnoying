@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -34,7 +34,7 @@ namespace RemoveTheAnnoying
         {
             // Singleton who
             if (Instance == null) Instance = this;
-            
+
             mls = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             mls.LogInfo("Patching some QoL files!");
 

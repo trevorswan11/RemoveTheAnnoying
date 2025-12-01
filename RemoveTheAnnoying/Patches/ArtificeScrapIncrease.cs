@@ -17,7 +17,7 @@ namespace RemoveTheAnnoying.Patches
             // Check the config option set by user
             if (!IncreasedArtificeScrapEnabled)
             {
-                Logger.LogInfo("Artifice scrap increase diabled, I won't proceed.");
+                Logger.LogInfo("Artifice scrap increase disabled, I won't proceed.");
                 return;
             }
 
@@ -25,7 +25,7 @@ namespace RemoveTheAnnoying.Patches
             string levelName = ___currentLevel.name.Replace("Level", "");
             if (levelName.Equals("Artifice"))
             {
-                Logger.LogDebug("Attempting to alter scrap spawnrates...");
+                Logger.LogDebug("Attempting to alter scrap spawn-rates...");
                 ___currentLevel.minScrap = v56ArtMin;
                 ___currentLevel.maxScrap = v56ArtMax;
                 Logger.LogInfo($"I successfully updated Artifice's scrap to a range of ({v56ArtMin},{v56ArtMax})");
