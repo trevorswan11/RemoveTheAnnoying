@@ -3,11 +3,13 @@ A somewhat simple lethal company mod created to remove game mechanics that are s
 
 The mod will prevent all spawning of Barbers and Maneaters, and prevents the Mineshaft Interior from generating. It also provides options to bring Artifice back to its v56 glory days and fixes an uncommon bug with the company cruiser. In addition to these adjustments, this mod also provides the following:
 - Total scrap value UI overlay when scanning inside of the ship
+- Terminal Selling behavior to reduce the time spent selling at the company building
+- Reduced delay between the time an item is ordered and the time it is delivered
 
 ## References
 Some of the implementation details starting in v2.0.0 were pulled from previously published authors. When applicable, the licenses for relevant code snippets are located in the patch's designated directory. In addition, all shipped releases contain a single file enumerating all authors whose code makes up a significant portion of a patch. Thank you to these MIT-licensed open source project's for their inspiration and for performing some of the heavy lifting:
 - [ShipLootTotal](https://github.com/daniel-noordzij/ShipLootTotal) by [daniel-noordzij](https://github.com/daniel-noordzij) - Powers ship loot information following the original ShipLoot's deprecation
-- [HQoL](https://github.com/MakuAureo/HQoL) by [MakuAureo](https://github.com/MakuAureo) - Powers terminal selling behavior
+- [HQoL](https://github.com/MakuAureo/HQoL) by [MakuAureo](https://github.com/MakuAureo) - Powers terminal selling behavior and purchasable item QoL
 
 Note that the choice to use this approach over a modpack is to reduce the friction encountered when less-technologically-inclined friends want to partake in some lightly-modded lethal company. The inclusion of others' code from various mods also gives full control over dependencies which is desirable in many cases.
 
@@ -17,4 +19,3 @@ This mod was created so that my friends and I would be able to have more fun in 
 ## Mod Links
 - [Thunderstore](https://thunderstore.io/c/lethal-company/p/KyoshiYoshi/RemoveTheAnnoying)
 - [RemoveTheAnnoying](https://github.com/trevorswan11/RemoveTheAnnoying)
-- 
