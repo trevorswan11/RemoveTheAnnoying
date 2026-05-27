@@ -2,6 +2,11 @@
 .vscode
 .DS_Store
 .vscode
+.zed
 
-bin/
-obj/
+bin
+obj
+out
+
+*.csproj.user
+.sln
