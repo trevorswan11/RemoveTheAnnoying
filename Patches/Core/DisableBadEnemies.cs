@@ -4,23 +4,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 
-namespace RemoveTheAnnoying.Patches
+namespace RemoveTheAnnoying.Patches.Core
 {
     [HarmonyPatch(typeof(RoundManager), "LoadNewLevel")]
     public class DisableBadEnemySpawningPatch
     {
-        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-        private static readonly HashSet<string> DisabledEnemies
+        private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
+        private static readonly HashSet<string> _disabledEnemies
             = new HashSet<string> { "ClaySurgeon", "CaveDweller" };
-        private static readonly bool BarberDisabled = RemoveAnnoyingBase.Instance.BarberDisabled.Value;
-        private static readonly bool ManeaterDisabled = RemoveAnnoyingBase.Instance.ManeaterDisabled.Value;
+        private static readonly bool _noBarber = RemoveTheAnnoyingBase.Instance.BarberDisabled.Value;
+        private static readonly bool _noManeater = RemoveTheAnnoyingBase.Instance.ManeaterDisabled.Value;
 
         private static void Prefix(SelectableLevel newLevel)
         {
             try { LevelOperation(newLevel, false); }
             catch (Exception ex)
             {
-                Logger.LogWarning($"Prefix disabling ran incorrectly: {ex}");
+                _log.LogWarning($"Prefix disabling ran incorrectly: {ex}");
             }
         }
 
@@ -29,7 +29,7 @@ namespace RemoveTheAnnoying.Patches
             try { LevelOperation(newLevel, true); }
             catch (Exception ex)
             {
-                Logger.LogWarning($"Postfix disabling ran incorrectly: {ex}");
+                _log.LogWarning($"Postfix disabling ran incorrectly: {ex}");
             }
         }
 
@@ -39,16 +39,16 @@ namespace RemoveTheAnnoying.Patches
             if (SelectableLevelIsCompany(newLevel)) return;
 
             // Check if the user is ok with both enemies
-            if (!BarberDisabled && !ManeaterDisabled)
+            if (!_noBarber && !_noManeater)
             {
-                if (log) Logger.LogInfo("All unfun enemies allowed by user config.");
+                if (log) _log.LogInfo("All unfun enemies allowed by user config.");
                 return;
             }
 
             // Check if the level contains any of the disabled enemies
-            if (!newLevel.Enemies.Any(e => DisabledEnemies.Contains(e.enemyType.name)))
+            if (!newLevel.Enemies.Any(e => _disabledEnemies.Contains(e.enemyType.name)))
             {
-                if (log) Logger.LogInfo("No unfun enemies detected in spawning pool.");
+                if (log) _log.LogInfo("No unfun enemies detected in spawning pool.");
                 return;
             }
 
@@ -58,32 +58,32 @@ namespace RemoveTheAnnoying.Patches
             {
                 if (DisableEnemyIfStinky(e, log)) disabledCount++;
             }
-            if (log) Logger.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
-            if (log && disabledCount > 0) Logger.LogDebug("Level will not spawn any unfun enemies.");
+            if (log) _log.LogInfo($"Disabled {disabledCount} unfun enemies in current level.");
+            if (log && disabledCount > 0) _log.LogDebug("Level will not spawn any unfun enemies.");
         }
 
         private static bool DisableEnemyIfStinky(SpawnableEnemyWithRarity enemy, bool log)
         {
             string enemyName = enemy.enemyType.name;
-            if (DisabledEnemies.Contains(enemyName))
+            if (_disabledEnemies.Contains(enemyName))
             {
                 // Check to see if the user is ok with the barber
-                if (enemyName.Equals("ClaySurgeon") && !BarberDisabled)
+                if (enemyName.Equals("ClaySurgeon") && !_noBarber)
                 {
-                    if (log) Logger.LogInfo("Barber allowed due to user config.");
+                    if (log) _log.LogInfo("Barber allowed due to user config.");
                     return false;
                 }
 
                 // Check to see if the user is ok with the maneater
-                if (enemyName.Equals("CaveDweller") && !ManeaterDisabled)
+                if (enemyName.Equals("CaveDweller") && !_noManeater)
                 {
-                    if (log) Logger.LogInfo("Maneater allowed due to user config");
+                    if (log) _log.LogInfo("Maneater allowed due to user config");
                     return false;
                 }
 
                 enemy.rarity = 0;
                 enemy.enemyType.spawningDisabled = true;
-                if (log) Logger.LogInfo($"Spawning of {enemyName} disabled.");
+                if (log) _log.LogInfo($"Spawning of {enemyName} disabled.");
                 return true;
             }
             return false;

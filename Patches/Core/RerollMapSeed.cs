@@ -4,41 +4,69 @@ using System.Linq;
 using BepInEx.Logging;
 using HarmonyLib;
 
-namespace RemoveTheAnnoying.Patches
+namespace RemoveTheAnnoying.Patches.Core
 {
     [HarmonyPatch(typeof(StartOfRound), "ChooseNewRandomMapSeed")]
     public class ChooseNewRandomMapSeedPatch
     {
+        private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
+        private static readonly bool _mineshaftDisabled = RemoveTheAnnoyingBase.Instance.MineshaftDisabled.Value;
+        private static readonly bool _allowArtFactory = RemoveTheAnnoyingBase.Instance.AllowFactoryArtifice.Value;
+        private static readonly bool _manorForced = RemoveTheAnnoyingBase.Instance.AttemptForceManor.Value;
+
+        private const int MAX_SEED_ATTEMPTS = 1000;
+        private const int MAX_SEED_VALUE = 100_000_000;
+
+        private static readonly Dictionary<int?, string> _interiorMap = new Dictionary<int?, string>{
+            {0, "Factory" },
+            {1, "Manor"},
+            {4, "Mineshaft"}
+        };
+
+        public enum InteriorType
+        {
+            Factory = 0, Manor = 1, Mineshaft = 4
+        }
+
+        /// Indices: 0 is Mine, 1 is Manor, 2 is Fact, 3 = Mine/Manor, 4 is Fact/Manor, 5 is Mine/Fact
+        private static InteriorType?[][] GetRemoveables()
+        {
+            InteriorType?[][] toRemove = new InteriorType?[6][];
+            toRemove[0] = new InteriorType?[] { InteriorType.Mineshaft };
+            toRemove[1] = new InteriorType?[] { InteriorType.Manor };
+            toRemove[2] = new InteriorType?[] { InteriorType.Factory };
+            toRemove[3] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Manor };
+            toRemove[4] = new InteriorType?[] { InteriorType.Factory, InteriorType.Manor };
+            toRemove[5] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Factory };
+            return toRemove;
+        }
+
         [HarmonyPatch(typeof(RoundManager), "GenerateNewFloor")]
         public class GenerateNewFloorPatch
         {
-            private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-            private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
-            private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
-
             private static bool Prefix(RoundManager __instance)
             {
                 string levelName = __instance.currentLevel.name.Replace("Level", "");
                 try
                 {
-                    if (MineshaftDisabled)
+                    if (_mineshaftDisabled)
                     {
                         // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
                         __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotMineshaft).ToArray();
-                        Logger.LogDebug($"Removed mineshaft generation of {levelName}.");
+                        _log.LogDebug($"Removed mineshaft generation of {levelName}.");
                     }
 
-                    if (levelName.Equals("Artifice") && !AllowFactoryArtifice)
+                    if (levelName.Equals("Artifice") && !_allowArtFactory)
                     {
                         // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
                         __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotFactory).ToArray();
-                        Logger.LogDebug($"Removed factory generation of {levelName}.");
+                        _log.LogDebug($"Removed factory generation of {levelName}.");
                     }
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarning($"Error removing interior type: {ex.Message}");
+                    _log.LogWarning($"Error removing interior type: {ex.Message}");
                     return false;
                 }
             }
@@ -47,32 +75,16 @@ namespace RemoveTheAnnoying.Patches
             private static bool IsNotFactory(IntWithRarity flow) => flow.id != (int)InteriorType.Factory;
         }
 
-        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-        private static readonly bool MineshaftDisabled = RemoveAnnoyingBase.Instance.MineshaftDisabled.Value;
-        private static readonly bool AllowFactoryArtifice = RemoveAnnoyingBase.Instance.AllowFactoryArtifice.Value;
-        private static readonly bool ManorForced = RemoveAnnoyingBase.Instance.AttemptForceManor.Value;
-
-        private const int MaxSeedAttempts = 1000;
-        private const int MaxSeedValue = 100_000_000;
-
-        private static readonly Dictionary<int?, string> interiorMap = new Dictionary<int?, string>();
-
-        public enum InteriorType
-        {
-            Factory = 0, Manor = 1, Mineshaft = 4
-        }
-
         private static void Postfix(StartOfRound __instance)
         {
             // Can exit early if the Mineshaft is enabled and Artifice is not banning factory
-            if (!MineshaftDisabled && AllowFactoryArtifice)
+            if (!_mineshaftDisabled && _allowArtFactory)
             {
-                Logger.LogInfo("All interiors are enabled, so I won't regenerate the seed.");
+                _log.LogInfo("All interiors are enabled, so I won't regenerate the seed.");
                 return;
             }
 
             // Initializations
-            Logger.LogDebug($"Initialize Dictionary: {InitializeInteriorDict()}");
             int randomSeed = __instance.randomMapSeed;
             RoundManager manager = RoundManager.Instance;
             InteriorType? type = DetermineType(randomSeed, manager);
@@ -82,30 +94,30 @@ namespace RemoveTheAnnoying.Patches
             if (!type.HasValue) return;
 
             type = type.Value;
-            Logger.LogInfo($"Seed: {randomSeed} is a {type}.");
+            _log.LogInfo($"Seed: {randomSeed} is a {type}.");
             InteriorType?[][] removeables = GetRemoveables();
             bool levelIsArtifice = levelName.Equals("Artifice");
 
-            if (ManorForced)
+            if (_manorForced)
             {
                 if (!RemoveInteriorGeneration(type, removeables[5], manager, __instance))
                 {
-                    Logger.LogDebug("Forcing Manor was unsuccessful, defaulting to other interior config rules...");
-                    if (MineshaftDisabled) RemoveInteriorGeneration(type, removeables[0], manager, __instance);
-                    else if (!AllowFactoryArtifice && levelIsArtifice)
+                    _log.LogDebug("Forcing Manor was unsuccessful, defaulting to other interior config rules...");
+                    if (_mineshaftDisabled) RemoveInteriorGeneration(type, removeables[0], manager, __instance);
+                    else if (!_allowArtFactory && levelIsArtifice)
                     {
                         RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                     }
                 }
             }
 
-            else if (MineshaftDisabled)
+            else if (_mineshaftDisabled)
             {
-                if (AllowFactoryArtifice)
+                if (_allowArtFactory)
                 {
                     RemoveInteriorGeneration(type, removeables[0], manager, __instance);
                 }
-                else if (!AllowFactoryArtifice && levelIsArtifice)
+                else if (!_allowArtFactory && levelIsArtifice)
                 {
                     RemoveInteriorGeneration(type, removeables[5], manager, __instance);
                 }
@@ -115,10 +127,10 @@ namespace RemoveTheAnnoying.Patches
                 }
             }
 
-            else if (!MineshaftDisabled)
+            else if (!_mineshaftDisabled)
             {
                 // Only block Factory on artifice if requested
-                if (!AllowFactoryArtifice && levelIsArtifice)
+                if (!_allowArtFactory && levelIsArtifice)
                 {
                     RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                 }
@@ -135,32 +147,31 @@ namespace RemoveTheAnnoying.Patches
             // Determine what the user wants to play
             if (!disallowedTypes.Contains(currentType))
             {
-                Logger.LogInfo("No need to regenerate seed.");
+                _log.LogInfo("No need to regenerate seed.");
                 return false;
             }
 
             // Get the names of the disallowed types
             int?[] disallowed = disallowedTypes.Select(dt => (int?)dt.Value).ToArray();
-            string[] names = disallowedTypes.Select(dt => interiorMap[(int)dt.Value]).ToArray();
+            string[] names = disallowedTypes.Select(dt => _interiorMap[(int)dt.Value]).ToArray();
             IEnumerable<string> zipped = names.Zip(disallowed, (name, typeVal) => $"{name}: {typeVal}");
-            Logger.LogDebug($"Current: {currentType}; Disallowed: {string.Join(", ", zipped)}");
+            _log.LogDebug($"Current: {currentType}; Disallowed: {string.Join(", ", zipped)}");
 
             // Log the types that are disallowed
-            Logger.LogInfo($"{string.Join(" or ", names)} seed identified, trying to regenerate...");
+            _log.LogInfo($"{string.Join(" or ", names)} seed identified, trying to regenerate...");
             manager.hasInitializedLevelRandomSeed = false;
             manager.InitializeRandomNumberGenerators();
 
-            // Limit reroll attempts to the specified amount
-            for (int i = 0; i < MaxSeedAttempts; i++)
+            for (int i = 0; i < MAX_SEED_ATTEMPTS; i++)
             {
                 int randomSeed = NewSeed();
-                InteriorType? type = DetermineType((int)randomSeed, manager);
-                Logger.LogDebug($"Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
+                InteriorType? type = DetermineType(randomSeed, manager);
+                _log.LogDebug($"Reroll Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
 
                 // Check for valid interior type
                 if (!type.HasValue)
                 {
-                    Logger.LogWarning("Detected unknown interior.");
+                    _log.LogWarning("Detected unknown interior.");
                     return false;
                 }
 
@@ -168,11 +179,11 @@ namespace RemoveTheAnnoying.Patches
                 if (!disallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault()))
                 {
                     __instance.randomMapSeed = randomSeed;
-                    Logger.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} attempts.");
+                    _log.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} reroll attempts.");
                     return true;
                 }
             }
-            Logger.LogWarning("Regeneration failed after 1000 attempts");
+            _log.LogWarning("Regeneration failed after 1000 attempts");
             return false;
         }
 
@@ -183,14 +194,14 @@ namespace RemoveTheAnnoying.Patches
                 // Realistically, this condiitonal will never be entered
                 if (ManagerIsCompany(manager))
                 {
-                    Logger.LogDebug("The Company Building Detected.");
+                    _log.LogDebug("The Company Building Detected.");
                     return null;
                 }
 
                 // This is 100000% necessary, do not remove this conditional
                 if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
                 {
-                    Logger.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
+                    _log.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
                     return null;
                 }
 
@@ -199,9 +210,9 @@ namespace RemoveTheAnnoying.Patches
 
                 // Some debugging
                 List<int> lst = manager.currentLevel.dungeonFlowTypes.Select((IntWithRarity flow) => flow.rarity).ToList();
-                Logger.LogDebug("List: " + string.Join(", ", lst));
+                _log.LogDebug("List: " + string.Join(", ", lst));
                 int weight = manager.GetRandomWeightedIndex(lst.ToArray(), rnd);
-                Logger.LogDebug($"Weight: {weight}");
+                _log.LogDebug($"Weight: {weight}");
 
                 // Check the enum for the id
                 int id = manager.currentLevel.dungeonFlowTypes[weight].id;
@@ -213,41 +224,17 @@ namespace RemoveTheAnnoying.Patches
             }
             catch (Exception ex)
             {
-                Logger.LogWarning($"Error determining interior type for seed {seed}: {ex.Message}");
+                _log.LogWarning($"Error determining interior type for seed {seed}: {ex.Message}");
                 return null;
             }
         }
 
-        private static int NewSeed() => new System.Random().Next(1, MaxSeedValue);
+        private static int NewSeed() => new Random().Next(1, MAX_SEED_VALUE);
 
         private static bool ManagerIsCompany(RoundManager manager)
         {
             string levelName = manager.currentLevel.name.Replace("Level", "");
             return levelName.Equals("CompanyBuilding");
-        }
-
-        private static bool InitializeInteriorDict()
-        {
-            if (interiorMap.ContainsKey(0)) return false;
-            interiorMap.Add(0, "Factory");
-            interiorMap.Add(1, "Manor");
-            interiorMap.Add(4, "Mineshaft");
-            return true;
-        }
-
-        /// <summary>
-        /// Indices: 0 is Mine, 1 is Manor, 2 is Fact, 3 = Mine/Manor, 4 is Fact/Manor, 5 is Mine/Fact
-        /// </summary>
-        private static InteriorType?[][] GetRemoveables()
-        {
-            InteriorType?[][] toRemove = new InteriorType?[6][];
-            toRemove[0] = new InteriorType?[] { InteriorType.Mineshaft };
-            toRemove[1] = new InteriorType?[] { InteriorType.Manor };
-            toRemove[2] = new InteriorType?[] { InteriorType.Factory };
-            toRemove[3] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Manor };
-            toRemove[4] = new InteriorType?[] { InteriorType.Factory, InteriorType.Manor };
-            toRemove[5] = new InteriorType?[] { InteriorType.Mineshaft, InteriorType.Factory };
-            return toRemove;
         }
     }
 }

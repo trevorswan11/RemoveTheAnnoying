@@ -1,25 +1,25 @@
 using BepInEx.Logging;
 using HarmonyLib;
 
-namespace RemoveTheAnnoying.Patches
+namespace RemoveTheAnnoying.Patches.Core
 {
     [HarmonyPatch(typeof(TimeOfDay), "Awake")]
     public class StartingCreditsPatch
     {
-        private static readonly ManualLogSource Logger = RemoveAnnoyingBase.mls;
-        private static readonly bool IncreaseEnabled = RemoveAnnoyingBase.Instance.IncreasedStartingCredits.Value;
-        private static readonly int IncreasedAmount = CalculateDesired();
+        private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
+        private static readonly bool _enabled = RemoveTheAnnoyingBase.Instance.IncreasedStartingCredits.Value;
+        private static readonly int _amount = CalculateDesired();
 
         private static void Postfix(TimeOfDay __instance)
         {
-            if (!IncreaseEnabled)
+            if (!_enabled)
             {
-                Logger.LogInfo("Increased starting credits diabled by user, I won't proceed.");
+                _log.LogInfo("Increased starting credits diabled by user, I won't proceed.");
                 return;
             }
 
-            __instance.quotaVariables.startingCredits = IncreasedAmount;
-            Logger.LogInfo($"I set the starting credits to {IncreasedAmount} successfully.");
+            __instance.quotaVariables.startingCredits = _amount;
+            _log.LogInfo($"I set the starting credits to {_amount} successfully.");
         }
 
         private static int CalculateDesired()

@@ -52,9 +52,10 @@ def create_manifest(version) -> str:
         "name": "RemoveTheAnnoying",
         "version_number": version,
         "description": (
-            """A configurable mod to disable mineshafts, Barbers, Maneaters, and
- Artifice facilities. Supports weather adjustment, allows for Artifice scrap spawns increases,
- fixes players being marked 'missing' when magnet-linked cruisers depart, and more!"""
+            "A configurable mod to disable mineshafts, Barbers, Maneaters, and "
+            "Artifice facilities. Supports scrap QoL similar to ShipLoot and SellMyScrap, allows for Artifice "
+            "scrap spawn increases (v56 levels), fixes players being marked 'missing' "
+            "when magnet-linked cruisers depart, and more!"
         ),
         "website_url": "https://github.com/trevorswan11/RemoveTheAnnoying.git",
         "dependencies": ["BepInEx-BepInExPack-5.4.2100"],
@@ -76,4 +77,6 @@ with zipfile.ZipFile(output_zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
     zipf.write(manifest_path, os.path.basename(manifest_path))
     zipf.write(".github/CHANGELOG.md", "CHANGELOG.md")
     zipf.write("assets/icon.png", "icon.png")
+    zipf.write("README.md", "README.md")
+    zipf.write("LICENSE", "LICENSE")
     zipf.write(dll_path, os.path.basename(dll_path))
