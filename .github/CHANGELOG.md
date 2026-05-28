@@ -4,7 +4,16 @@
     - Add Ship Loot feature
         - Inspiration from the popular but deprecated [ShipLoot](https://github.com/tinyhoot/ShipLoot) by [tinyhoot](https://github.com/tinyhoot)
         - Includes items in the ship and the cruiser, displaying them in your HUD upon scan inside of the ship
+        - This can be disabled by setting the config option to 0 in your mod configuration menu
     - Fully verified behavior following some breaking changes introduced in recent Lethal Company versions
+        - Adjusted Starting Credits Increase to account for new base prices
+    - Upgrade .NET toolchain version and remove Visual Studio Artifacts
+        - NuGet is now used as a package manager, with the only programmer-specific configuration being the Lethal Company directory
+        - Developers should create a `.csproj.user` file with the property `GameFolder` pointing at their personal Lethal Company folder
+    - Remove all weather tweaks due to multiplayer and general instability
+        - This includes the eclipsed multiplier introduced in v1.4.1
+    - Standardize naming conventions across source files
+    - Standardize naming conventions across Log sources, Configuration, and project details
 
 - **1.4.2**
 
@@ -20,7 +29,6 @@
     - Created a new config section called 'Relaxed' which features two new patches
         - **StartingCreditsPatch:** Sets the starting credit value to a high enough amount to buy some flashlights, walkies, weed killer, a cruiser, and to go to art
         - **EclipsedScrapValuePatch:** A floating point value that allows you to increase the scrap spawn amount on eclipsed days. This is limited by a range of (0, 2], meaning it cannot be 0, and cannot exceed 2.
-
 
 - **1.4.0**
 

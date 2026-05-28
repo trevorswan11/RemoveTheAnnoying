@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Linq;
-using System.Reflection;
 using BepInEx.Logging;
 using HarmonyLib;
 using TMPro;
@@ -44,12 +43,19 @@ internal class CountShipLoot {
     private static ManualLogSource Log => RemoveTheAnnoyingBase.Log;
     private static float BaseDisplayTime => RemoveTheAnnoyingBase.Instance.ShipLootDisplayTime.Value;
 
+    private const float MINIMUM_DISPLAY_TIME = 0.2f;
+
     [HarmonyPostfix]
     [HarmonyPatch("PingScan_performed")]
     public static void Postfix(ref InputAction.CallbackContext context) {
         if (GameNetworkManager.Instance.localPlayerController == null) return;
         if (!context.performed || (Time.time - _lastScanPostfixAt) < 0.25f) return;
         _lastScanPostfixAt = Time.time;
+
+        if (BaseDisplayTime < MINIMUM_DISPLAY_TIME) {
+            Log.LogDebug($"Configured display time below {MINIMUM_DISPLAY_TIME}s skips ShipLoot calculation, got {BaseDisplayTime}s");
+            return;
+        }
 
         // Only allow this special scan to work while inside the ship.
         if (!StartOfRound.Instance.inShipPhase && !GameNetworkManager.Instance.localPlayerController.isInHangarShipRoom)

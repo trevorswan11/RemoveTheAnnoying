@@ -39,7 +39,6 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin {
         // Config
         BindConfig();
         Harmony.PatchAll();
-        NetcodePatch();
 
         Log.LogInfo("I finished patching!");
         ConfigStatus();
@@ -72,23 +71,5 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin {
         Log.LogDebug($"Config {nameof(RemoveInteriorFog)} = {RemoveInteriorFog.Value}");
         Log.LogDebug($"Config {nameof(IncreasedStartingCredits)} = {IncreasedStartingCredits.Value}");
         Log.LogDebug($"Config {nameof(ShipLootDisplayTime)} = {ShipLootDisplayTime.Value}");
-    }
-
-    // Netcode multipathing copied from https://github.com/ZehsTeam/Lethal-Company-SellMyScrap
-    private static void NetcodePatch() {
-        var types = Assembly.GetExecutingAssembly().GetTypes();
-        foreach (var type in types) {
-            var methods = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-            foreach (var method in methods) {
-                var attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
-                if (attributes.Length > 0) {
-                    try {
-                        method.Invoke(null, null);
-                    } catch (Exception e) {
-                        Log.LogWarning($"Netcode patch failed, but it's likely intended: {e}");
-                    }
-                }
-            }
-        }
     }
 }

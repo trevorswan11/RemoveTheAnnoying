@@ -25,10 +25,10 @@ public class StartingCreditsPatch {
         Log.LogInfo($"I set the starting credits to {JUICED_AMT} successfully.");
     }
 
-    private const int CRUISER_PRICE = 400;
+    private const int CRUISER_PRICE = 370;
     private const int ART_PRICE = 1500;
-    private const int WEED_PRICE = 25;
+    private const int WEED_PRICE = 20;
     private const int PRO_PRICE = 28;
-    private const int WALKIE_PRICE = 12;
+    private const int WALKIE_PRICE = 10;
     private const int SHOVEL_PRICE = 30;
 }
