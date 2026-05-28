@@ -1,13 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <OutputType>Library</OutputType>
     <RootNamespace>RemoveTheAnnoying</RootNamespace>
     <AssemblyName>RemoveTheAnnoying</AssemblyName>
     <Deterministic>true</Deterministic>
     <GameFolder Condition=" '$(GameFolder)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Lethal Company</GameFolder>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <LangVersion>latest</LangVersion> 
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

@@ -36,7 +36,7 @@ def dotnet_build() -> str:
         print(result.stderr)
         exit(1)
 
-    compiled_path = pathlib.Path(f"bin/Release/net472/{PROJECT_NAME}.dll")
+    compiled_path = pathlib.Path(f"bin/Release/{PROJECT_NAME}.dll")
     if not compiled_path.exists:
         print(f"{compiled_path} does not exist")
         exit(1)
