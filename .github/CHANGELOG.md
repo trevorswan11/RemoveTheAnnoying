@@ -1,3 +1,11 @@
+- **2.0.0**
+
+    - Improve performance of seed reroller, eliminating redundant heavy calculations in every level load
+    - Add Ship Loot feature
+        - Inspiration from the popular but deprecated [ShipLoot](https://github.com/tinyhoot/ShipLoot) by [tinyhoot](https://github.com/tinyhoot)
+        - Includes items in the ship and the cruiser, displaying them in your HUD upon scan inside of the ship
+    - Fully verified behavior following some breaking changes introduced in recent Lethal Company versions
+
 - **1.4.2**
 
     - Large project refactoring
