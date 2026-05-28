@@ -7,20 +7,18 @@ namespace RemoveTheAnnoying.Patches;
 
 [HarmonyPatch(typeof(StartOfRound), "ShipLeave")]
 public class CruiserSeatTeleportPatch {
-    private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
-    private static readonly bool _enabled = RemoveTheAnnoyingBase.Instance.CruiserTeleportFix.Value;
-    private static readonly float _teleportDelay = 4.642f;
+    private static ManualLogSource Log => RemoveTheAnnoyingBase.Log;
+    private static bool Enabled => RemoveTheAnnoyingBase.Instance.CruiserTeleportFix.Value;
+    private const float TELEPORT_DELAY = 4.642f;
 
-    private async static void Postfix(StartOfRound __instance) {
-        // Check to see if the ship is leaving or Magnet is not on
+    private static async void Postfix(StartOfRound __instance) {
         if (!IsShipLeaving(__instance)) return;
-
-        // Check the current config option
-        if (!_enabled) {
-            _log.LogInfo("Cruiser fix diabled by user, I won't proceed.");
+        if (!Enabled) {
+            Log.LogInfo("Cruiser fix diabled by user, I won't proceed.");
             return;
         }
-        await ExecuteAfterDelay(_teleportDelay, __instance);
+
+        await ExecuteAfterDelay(TELEPORT_DELAY, __instance);
     }
 
     private static async Task ExecuteAfterDelay(float delay, StartOfRound __instance) {
@@ -35,7 +33,7 @@ public class CruiserSeatTeleportPatch {
         TeleportPlayerToTerminal(playerA);
         PlayerControllerB playerB = cruiser.currentPassenger;
         TeleportPlayerToTerminal(playerB);
-        _log.LogDebug("Teleport sequence exited without any errors :)");
+        Log.LogDebug("Teleport sequence exited without any errors :)");
     }
 
     private static bool IsShipLeaving(StartOfRound startOfRound) {
@@ -44,7 +42,7 @@ public class CruiserSeatTeleportPatch {
 
     private static bool IsMagnetProper(StartOfRound startOfRound, VehicleController vehicleController) {
         bool result = startOfRound.magnetOn && (startOfRound.isObjectAttachedToMagnet || vehicleController.magnetedToShip);
-        if (!result) _log.LogInfo("Teleport sequence exited due to cruiser not being connected to the ship's magnet.");
+        if (!result) Log.LogInfo("Teleport sequence exited due to cruiser not being connected to the ship's magnet.");
         return result;
     }
 
@@ -52,7 +50,7 @@ public class CruiserSeatTeleportPatch {
         if (player == null) return false;
         Terminal term = UnityEngine.Object.FindObjectOfType<Terminal>();
         player.TeleportPlayer(term.transform.position);
-        _log.LogInfo($"Successfully teleported {player.playerUsername} to Ship.");
+        Log.LogInfo($"Successfully teleported {player.playerUsername} to Ship.");
         player.isInHangarShipRoom = true;
         return true;
     }

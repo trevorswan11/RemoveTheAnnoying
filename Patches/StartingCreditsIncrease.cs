@@ -5,35 +5,30 @@ namespace RemoveTheAnnoying.Patches;
 
 [HarmonyPatch(typeof(TimeOfDay), "Awake")]
 public class StartingCreditsPatch {
-    private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
-    private static readonly bool _enabled = RemoveTheAnnoyingBase.Instance.IncreasedStartingCredits.Value;
-    private static readonly int _amount = CalculateDesired();
+    private static ManualLogSource Log => RemoveTheAnnoyingBase.Log;
+    private static bool Enabled => RemoveTheAnnoyingBase.Instance.IncreasedStartingCredits.Value;
+
+    private const int JUICED_AMT = CRUISER_PRICE +
+        1 * ART_PRICE +
+        2 * WEED_PRICE +
+        5 * PRO_PRICE +
+        5 * WALKIE_PRICE +
+        2 * SHOVEL_PRICE;
 
     private static void Postfix(TimeOfDay __instance) {
-        if (!_enabled) {
-            _log.LogInfo("Increased starting credits diabled by user, I won't proceed.");
+        if (!Enabled) {
+            Log.LogInfo("Increased starting credits diabled by user, I won't proceed.");
             return;
         }
 
-        __instance.quotaVariables.startingCredits = _amount;
-        _log.LogInfo($"I set the starting credits to {_amount} successfully.");
+        __instance.quotaVariables.startingCredits = JUICED_AMT;
+        Log.LogInfo($"I set the starting credits to {JUICED_AMT} successfully.");
     }
 
-    private static int CalculateDesired() {
-        int CruiserPrice = 400;
-        int ArtificePrice = 1500;
-        int WeedKillerPrice = 25;
-        int FlashlightPrice = 25;
-        int WalkiePrice = 12;
-        int ShovelPrice = 30;
-
-        return (
-            CruiserPrice +
-            ArtificePrice +
-            2 * WeedKillerPrice +
-            5 * FlashlightPrice +
-            5 * WalkiePrice +
-            2 * ShovelPrice
-        );
-    }
+    private const int CRUISER_PRICE = 400;
+    private const int ART_PRICE = 1500;
+    private const int WEED_PRICE = 25;
+    private const int PRO_PRICE = 28;
+    private const int WALKIE_PRICE = 12;
+    private const int SHOVEL_PRICE = 30;
 }

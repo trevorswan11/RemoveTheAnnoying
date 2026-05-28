@@ -41,9 +41,8 @@ internal class CountShipLoot {
     private static float _displayTimeLeft;
     private static float _lastScanPostfixAt = -999f;
 
-    private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
-    private static readonly float _baseDisplayTime = RemoveTheAnnoyingBase.Instance.ShipLootDisplayTime.Value;
-    internal static readonly FieldInfo gObjDeactivated = AccessTools.Field(typeof(GrabbableObject), "deactivated");
+    private static ManualLogSource Log => RemoveTheAnnoyingBase.Log;
+    private static float BaseDisplayTime => RemoveTheAnnoyingBase.Instance.ShipLootDisplayTime.Value;
 
     [HarmonyPostfix]
     [HarmonyPatch("PingScan_performed")]
@@ -64,7 +63,7 @@ internal class CountShipLoot {
         if (_cruiser && _cruiser.magnetedToShip)
             value += CalculateCruiserLoot();
         _textMesh.text = $"SCRAP: ${value:F0}";
-        _displayTimeLeft = _baseDisplayTime;
+        _displayTimeLeft = BaseDisplayTime;
 
         if (!_totalCounter.activeSelf) GameNetworkManager.Instance.StartCoroutine(ShipLootCoroutine());
     }
@@ -86,7 +85,7 @@ internal class CountShipLoot {
     // Drops items that are technically scrap but do not count towards quota from the calculation.
     private static float CalculateTargetLoot<T>(T target, string name) where T : Object {
         if (target == null) {
-            _log.LogWarning($"{name} could not be located, something went wrong!");
+            Log.LogWarning($"{name} could not be located, something went wrong!");
             return 0f;
         }
 
@@ -101,8 +100,8 @@ internal class CountShipLoot {
         }
 
         var loot = items.Where(obj => obj.itemProperties.isScrap && obj is not RagdollGrabbableObject);
-        _log.LogDebug($"Calculating total {name.ToLower()} scrap value.");
-        loot.Do(scrap => _log.LogDebug($"{scrap.name} - ${scrap.scrapValue}"));
+        Log.LogDebug($"Calculating total {name.ToLower()} scrap value.");
+        loot.Do(scrap => Log.LogDebug($"{scrap.name} - ${scrap.scrapValue}"));
 
         return loot.Sum(scrap => scrap.scrapValue);
     }
@@ -110,7 +109,7 @@ internal class CountShipLoot {
     // Copy an existing object loaded by the game for the display of ship loot and put it in the right position.
     private static void CopyValueCounter() {
         GameObject valueCounter = GameObject.Find("/Systems/UI/Canvas/IngamePlayerHUD/BottomMiddle/ValueCounter");
-        if (!valueCounter) _log.LogError("Failed to find ValueCounter object to copy!");
+        if (!valueCounter) Log.LogError("Failed to find ValueCounter object to copy!");
         _totalCounter = Object.Instantiate(valueCounter.gameObject, valueCounter.transform.parent, false);
         _totalCounter.transform.Translate(0f, 1f, 0f);
         Vector3 pos = _totalCounter.transform.localPosition;
