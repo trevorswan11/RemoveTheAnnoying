@@ -7,8 +7,7 @@ using HarmonyLib;
 namespace RemoveTheAnnoying.Patches;
 
 [HarmonyPatch(typeof(StartOfRound), "ChooseNewRandomMapSeed")]
-public class ChooseNewRandomMapSeedPatch
-{
+public class ChooseNewRandomMapSeedPatch {
     private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
     private static readonly bool _mineshaftDisabled = RemoveTheAnnoyingBase.Instance.MineshaftDisabled.Value;
     private static readonly bool _allowArtFactory = RemoveTheAnnoyingBase.Instance.AllowFactoryArtifice.Value;
@@ -23,14 +22,12 @@ public class ChooseNewRandomMapSeedPatch
             {4, "Mineshaft"}
         };
 
-    public enum InteriorType
-    {
+    public enum InteriorType {
         Factory = 0, Manor = 1, Mineshaft = 4
     }
 
     /// Indices: 0 is Mine, 1 is Manor, 2 is Fact, 3 = Mine/Manor, 4 is Fact/Manor, 5 is Mine/Fact
-    private static InteriorType?[][] GetRemoveables()
-    {
+    private static InteriorType?[][] GetRemoveables() {
         InteriorType?[][] toRemove = new InteriorType?[6][];
         toRemove[0] = new InteriorType?[] { InteriorType.Mineshaft };
         toRemove[1] = new InteriorType?[] { InteriorType.Manor };
@@ -42,30 +39,23 @@ public class ChooseNewRandomMapSeedPatch
     }
 
     [HarmonyPatch(typeof(RoundManager), "GenerateNewFloor")]
-    public class GenerateNewFloorPatch
-    {
-        private static bool Prefix(RoundManager __instance)
-        {
+    public class GenerateNewFloorPatch {
+        private static bool Prefix(RoundManager __instance) {
             string levelName = __instance.currentLevel.name.Replace("Level", "");
-            try
-            {
-                if (_mineshaftDisabled)
-                {
+            try {
+                if (_mineshaftDisabled) {
                     // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
                     __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotMineshaft).ToArray();
                     _log.LogDebug($"Removed mineshaft generation of {levelName}.");
                 }
 
-                if (levelName.Equals("Artifice") && !_allowArtFactory)
-                {
+                if (levelName.Equals("Artifice") && !_allowArtFactory) {
                     // Modify the current level's dungeonFlowTypes by removing any entry where the id is the Mineshaft ID
                     __instance.currentLevel.dungeonFlowTypes = __instance.currentLevel.dungeonFlowTypes.Where(IsNotFactory).ToArray();
                     _log.LogDebug($"Removed factory generation of {levelName}.");
                 }
                 return true;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _log.LogWarning($"Error removing interior type: {ex.Message}");
                 return false;
             }
@@ -75,11 +65,9 @@ public class ChooseNewRandomMapSeedPatch
         private static bool IsNotFactory(IntWithRarity flow) => flow.id != (int)InteriorType.Factory;
     }
 
-    private static void Postfix(StartOfRound __instance)
-    {
+    private static void Postfix(StartOfRound __instance) {
         // Can exit early if the Mineshaft is enabled and Artifice is not banning factory
-        if (!_mineshaftDisabled && _allowArtFactory)
-        {
+        if (!_mineshaftDisabled && _allowArtFactory) {
             _log.LogInfo("All interiors are enabled, so I won't regenerate the seed.");
             return;
         }
@@ -98,55 +86,38 @@ public class ChooseNewRandomMapSeedPatch
         InteriorType?[][] removeables = GetRemoveables();
         bool levelIsArtifice = levelName.Equals("Artifice");
 
-        if (_manorForced)
-        {
-            if (!RemoveInteriorGeneration(type, removeables[5], manager, __instance))
-            {
+        if (_manorForced) {
+            if (!RemoveInteriorGeneration(type, removeables[5], manager, __instance)) {
                 _log.LogDebug("Forcing Manor was unsuccessful, defaulting to other interior config rules...");
                 if (_mineshaftDisabled) RemoveInteriorGeneration(type, removeables[0], manager, __instance);
-                else if (!_allowArtFactory && levelIsArtifice)
-                {
+                else if (!_allowArtFactory && levelIsArtifice) {
                     RemoveInteriorGeneration(type, removeables[2], manager, __instance);
                 }
             }
-        }
-
-        else if (_mineshaftDisabled)
-        {
-            if (_allowArtFactory)
-            {
+        } else if (_mineshaftDisabled) {
+            if (_allowArtFactory) {
                 RemoveInteriorGeneration(type, removeables[0], manager, __instance);
-            }
-            else if (!_allowArtFactory && levelIsArtifice)
-            {
+            } else if (!_allowArtFactory && levelIsArtifice) {
                 RemoveInteriorGeneration(type, removeables[5], manager, __instance);
-            }
-            else
-            {
+            } else {
                 RemoveInteriorGeneration(type, removeables[0], manager, __instance);
             }
-        }
-
-        else if (!_mineshaftDisabled)
-        {
+        } else if (!_mineshaftDisabled) {
             // Only block Factory on artifice if requested
-            if (!_allowArtFactory && levelIsArtifice)
-            {
+            if (!_allowArtFactory && levelIsArtifice) {
                 RemoveInteriorGeneration(type, removeables[2], manager, __instance);
             }
         }
     }
 
     private static bool RemoveInteriorGeneration(InteriorType? currentType,
-        InteriorType?[] disallowedTypes, RoundManager manager, StartOfRound __instance)
-    {
+        InteriorType?[] disallowedTypes, RoundManager manager, StartOfRound __instance) {
         // Return if types are not provided, or if every interior is requested to be removed
         if (disallowedTypes.Length == 0 || disallowedTypes.Length == 3) return false;
         if (disallowedTypes == null || disallowedTypes.Contains(null)) return false;
 
         // Determine what the user wants to play
-        if (!disallowedTypes.Contains(currentType))
-        {
+        if (!disallowedTypes.Contains(currentType)) {
             _log.LogInfo("No need to regenerate seed.");
             return false;
         }
@@ -162,22 +133,19 @@ public class ChooseNewRandomMapSeedPatch
         manager.hasInitializedLevelRandomSeed = false;
         manager.InitializeRandomNumberGenerators();
 
-        for (int i = 0; i < MAX_SEED_ATTEMPTS; i++)
-        {
+        for (int i = 0; i < MAX_SEED_ATTEMPTS; i++) {
             int randomSeed = NewSeed();
             InteriorType? type = DetermineType(randomSeed, manager);
             _log.LogDebug($"Reroll Attempt {i + 1} - Seed: {randomSeed} Interior: {type}");
 
             // Check for valid interior type
-            if (!type.HasValue)
-            {
+            if (!type.HasValue) {
                 _log.LogWarning("Detected unknown interior.");
                 return false;
             }
 
             // Check for mineshaft or factory generation
-            if (!disallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault()))
-            {
+            if (!disallowedTypes.Contains(new InteriorType?(type.Value).GetValueOrDefault())) {
                 __instance.randomMapSeed = randomSeed;
                 _log.LogInfo($"Generated new map seed: {randomSeed} after {i + 1} reroll attempts.");
                 return true;
@@ -187,20 +155,16 @@ public class ChooseNewRandomMapSeedPatch
         return false;
     }
 
-    private static InteriorType? DetermineType(int seed, RoundManager manager)
-    {
-        try
-        {
+    private static InteriorType? DetermineType(int seed, RoundManager manager) {
+        try {
             // Realistically, this condiitonal will never be entered
-            if (ManagerIsCompany(manager))
-            {
+            if (ManagerIsCompany(manager)) {
                 _log.LogDebug("The Company Building Detected.");
                 return null;
             }
 
             // This is 100000% necessary, do not remove this conditional
-            if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0)
-            {
+            if (manager.currentLevel.dungeonFlowTypes == null || manager.currentLevel.dungeonFlowTypes.Length == 0) {
                 _log.LogDebug($"Seed {seed}: Moon is not recognized as having an interior.");
                 return null;
             }
@@ -216,14 +180,11 @@ public class ChooseNewRandomMapSeedPatch
 
             // Check the enum for the id
             int id = manager.currentLevel.dungeonFlowTypes[weight].id;
-            if (Enum.IsDefined(typeof(InteriorType), id))
-            {
+            if (Enum.IsDefined(typeof(InteriorType), id)) {
                 return (InteriorType)id;
             }
             return null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _log.LogWarning($"Error determining interior type for seed {seed}: {ex.Message}");
             return null;
         }
@@ -231,8 +192,7 @@ public class ChooseNewRandomMapSeedPatch
 
     private static int NewSeed() => new Random().Next(1, MAX_SEED_VALUE);
 
-    private static bool ManagerIsCompany(RoundManager manager)
-    {
+    private static bool ManagerIsCompany(RoundManager manager) {
         string levelName = manager.currentLevel.name.Replace("Level", "");
         return levelName.Equals("CompanyBuilding");
     }

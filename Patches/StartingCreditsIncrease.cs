@@ -4,16 +4,13 @@ using HarmonyLib;
 namespace RemoveTheAnnoying.Patches;
 
 [HarmonyPatch(typeof(TimeOfDay), "Awake")]
-public class StartingCreditsPatch
-{
+public class StartingCreditsPatch {
     private static readonly ManualLogSource _log = RemoveTheAnnoyingBase.Log;
     private static readonly bool _enabled = RemoveTheAnnoyingBase.Instance.IncreasedStartingCredits.Value;
     private static readonly int _amount = CalculateDesired();
 
-    private static void Postfix(TimeOfDay __instance)
-    {
-        if (!_enabled)
-        {
+    private static void Postfix(TimeOfDay __instance) {
+        if (!_enabled) {
             _log.LogInfo("Increased starting credits diabled by user, I won't proceed.");
             return;
         }
@@ -22,8 +19,7 @@ public class StartingCreditsPatch
         _log.LogInfo($"I set the starting credits to {_amount} successfully.");
     }
 
-    private static int CalculateDesired()
-    {
+    private static int CalculateDesired() {
         int CruiserPrice = 400;
         int ArtificePrice = 1500;
         int WeedKillerPrice = 25;

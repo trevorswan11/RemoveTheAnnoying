@@ -1,13 +1,15 @@
+using System;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using UnityEngine;
 
 namespace RemoveTheAnnoying;
 
 [BepInPlugin(GUID, NAME, VERSION)]
-public class RemoveTheAnnoyingBase : BaseUnityPlugin
-{
+public class RemoveTheAnnoyingBase : BaseUnityPlugin {
     private const string GUID = "Kyoshi.RemoveTheAnnoying";
     private const string NAME = "RemoveTheAnnoying";
     private const string VERSION = "2.0.0";
@@ -27,8 +29,7 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin
     public ConfigEntry<bool> IncreasedStartingCredits { get; private set; }
     public ConfigEntry<float> ShipLootDisplayTime { get; private set; }
 
-    public void Awake()
-    {
+    public void Awake() {
         // Singleton who
         if (Instance == null) Instance = this;
 
@@ -38,13 +39,13 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin
         // Config
         BindConfig();
         Harmony.PatchAll();
+        NetcodePatch();
 
-        Log.LogInfo("The game is now more playable!");
+        Log.LogInfo("I finished patching!");
         ConfigStatus();
     }
 
-    void BindConfig()
-    {
+    private void BindConfig() {
         CruiserTeleportFix = Config.Bind("General", nameof(CruiserTeleportFix), true, "Allows players in a cruiser connected to the ship's magnet to be counted as in the ship when the ship takes off.");
         ShipLootDisplayTime = Config.Bind("General", nameof(ShipLootDisplayTime), 5.0f, "How long to display the total scrap value for in seconds. Set to 0 to disable.");
 
@@ -60,8 +61,7 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin
         IncreasedStartingCredits = Config.Bind("Money", nameof(IncreasedStartingCredits), false, "Increases the starting credits enough to buy cruiser, 5 pro flashlights, 5 walkies, 2 shovels, 2 weed killer, and to go to Artifice (assuming no sales).");
     }
 
-    void ConfigStatus()
-    {
+    private void ConfigStatus() {
         Log.LogDebug($"Config {nameof(MineshaftDisabled)} = {MineshaftDisabled.Value}");
         Log.LogDebug($"Config {nameof(BarberDisabled)} = {BarberDisabled.Value}");
         Log.LogDebug($"Config {nameof(ManeaterDisabled)} = {ManeaterDisabled.Value}");
@@ -72,5 +72,23 @@ public class RemoveTheAnnoyingBase : BaseUnityPlugin
         Log.LogDebug($"Config {nameof(RemoveInteriorFog)} = {RemoveInteriorFog.Value}");
         Log.LogDebug($"Config {nameof(IncreasedStartingCredits)} = {IncreasedStartingCredits.Value}");
         Log.LogDebug($"Config {nameof(ShipLootDisplayTime)} = {ShipLootDisplayTime.Value}");
+    }
+
+    // Netcode multipathing copied from https://github.com/ZehsTeam/Lethal-Company-SellMyScrap
+    private static void NetcodePatch() {
+        var types = Assembly.GetExecutingAssembly().GetTypes();
+        foreach (var type in types) {
+            var methods = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            foreach (var method in methods) {
+                var attributes = method.GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
+                if (attributes.Length > 0) {
+                    try {
+                        method.Invoke(null, null);
+                    } catch (Exception e) {
+                        Log.LogWarning($"Netcode patch failed, but it's likely intended: {e}");
+                    }
+                }
+            }
+        }
     }
 }

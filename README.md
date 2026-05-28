@@ -7,8 +7,7 @@ The mod will prevent all spawning of Barbers and Maneaters, and prevents the Min
 
 ## References
 The inner workings of this mod were made possible by the modding work done by those in the community. Thank you to these open source project's for their implementation, even though some have since been deprecated:
-- [ShipLoot](https://github.com/tinyhoot/ShipLoot) by [tinyhoot](https://github.com/tinyhoot) - Provides the HUD implementation information
-- [ShipLootTotal](https://github.com/daniel-noordzij/ShipLootTotal) by [daniel-noordzij](https://github.com/daniel-noordzij) - Powers ship loot information following the original ShipLoot's deprecation
+- [ShipLoot](https://github.com/tinyhoot/ShipLoot) by [tinyhoot](https://github.com/tinyhoot) - Powers the Ship Loot HUD implementation
 - [HQoL](https://github.com/MakuAureo/HQoL) by [MakuAureo](https://github.com/MakuAureo) - Powers terminal selling behavior and purchasable item QoL
 
 ## AI Disclaimer

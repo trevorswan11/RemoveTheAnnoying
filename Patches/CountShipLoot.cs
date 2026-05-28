@@ -33,8 +33,7 @@ namespace RemoveTheAnnoying.Patches;
 // SOFTWARE.
 
 [HarmonyPatch(typeof(HUDManager))]
-internal class CountShipLoot
-{
+internal class CountShipLoot {
     private static GameObject _ship;
     private static VehicleController _cruiser;
     private static GameObject _totalCounter;
@@ -48,8 +47,7 @@ internal class CountShipLoot
 
     [HarmonyPostfix]
     [HarmonyPatch("PingScan_performed")]
-    public static void Postfix(ref InputAction.CallbackContext context)
-    {
+    public static void Postfix(ref InputAction.CallbackContext context) {
         if (GameNetworkManager.Instance.localPlayerController == null) return;
         if (!context.performed || (Time.time - _lastScanPostfixAt) < 0.25f) return;
         _lastScanPostfixAt = Time.time;
@@ -71,11 +69,9 @@ internal class CountShipLoot
         if (!_totalCounter.activeSelf) GameNetworkManager.Instance.StartCoroutine(ShipLootCoroutine());
     }
 
-    private static IEnumerator ShipLootCoroutine()
-    {
+    private static IEnumerator ShipLootCoroutine() {
         _totalCounter.SetActive(true);
-        while (_displayTimeLeft > 0f)
-        {
+        while (_displayTimeLeft > 0f) {
             float time = _displayTimeLeft;
             _displayTimeLeft = 0f;
             yield return new WaitForSeconds(time);
@@ -88,26 +84,19 @@ internal class CountShipLoot
 
     // Calculate the value of all scrap in the cruiser.
     // Drops items that are technically scrap but do not count towards quota from the calculation.
-    private static float CalculateTargetLoot<T>(T target, string name)
-    {
-        if (target == null)
-        {
+    private static float CalculateTargetLoot<T>(T target, string name) where T : Object {
+        if (target == null) {
             _log.LogWarning($"{name} could not be located, something went wrong!");
             return 0f;
         }
 
         // Pattern match on the target to get the items
         System.Collections.Generic.IEnumerable<GrabbableObject> items;
-        if (target is GameObject go)
-        {
+        if (target is GameObject go) {
             items = go.GetComponentsInChildren<GrabbableObject>();
-        }
-        else if (target is Component comp)
-        {
+        } else if (target is Component comp) {
             items = comp.GetComponentsInChildren<GrabbableObject>();
-        }
-        else
-        {
+        } else {
             return 0f;
         }
 
@@ -119,8 +108,7 @@ internal class CountShipLoot
     }
 
     // Copy an existing object loaded by the game for the display of ship loot and put it in the right position.
-    private static void CopyValueCounter()
-    {
+    private static void CopyValueCounter() {
         GameObject valueCounter = GameObject.Find("/Systems/UI/Canvas/IngamePlayerHUD/BottomMiddle/ValueCounter");
         if (!valueCounter) _log.LogError("Failed to find ValueCounter object to copy!");
         _totalCounter = Object.Instantiate(valueCounter.gameObject, valueCounter.transform.parent, false);
