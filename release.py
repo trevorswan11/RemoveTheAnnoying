@@ -10,6 +10,13 @@ import zipfile
 PROJECT_NAME = "RemoveTheAnnoying"
 OUTPUT_DIR = "out"
 
+MOD_DESC = (
+    "A configurable mod to disable Barbers, Maneaters, and "
+    "certain interiors. Supports scrap QoL similar to ShipLoot, "
+    "allows for v56 Artifice scrap rates, fixes players being marked 'missing' "
+    "when magneted cruisers depart, and more!"
+)
+
 
 # Validates CLI arguments and semver structure
 def get_semver() -> str:
@@ -51,12 +58,7 @@ def create_manifest(version) -> str:
     manifest_data = {
         "name": "RemoveTheAnnoying",
         "version_number": version,
-        "description": (
-            "A configurable mod to disable mineshafts, Barbers, Maneaters, and "
-            "Artifice facilities. Supports scrap QoL similar to ShipLoot and SellMyScrap, allows for Artifice "
-            "scrap spawn increases (v56 levels), fixes players being marked 'missing' "
-            "when magnet-linked cruisers depart, and more!"
-        ),
+        "description": MOD_DESC,
         "website_url": "https://github.com/trevorswan11/RemoveTheAnnoying.git",
         "dependencies": ["BepInEx-BepInExPack-5.4.2100"],
     }
@@ -66,6 +68,10 @@ def create_manifest(version) -> str:
         json.dump(manifest_data, f, indent=4)
     return manifest_path
 
+
+if len(MOD_DESC) > 256:
+    print("Mod description exceeds Thunderstore's 256 character limit")
+    exit(1)
 
 pathlib.Path(OUTPUT_DIR).mkdir(exist_ok=True)
 version = get_semver()
